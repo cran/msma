@@ -1,0 +1,12 @@
+d95d7e2f0d2e886eb6eff4d319465f45 *DESCRIPTION
+675502eeb6a3cff4a0d0e71ea60657ec *NAMESPACE
+71cab01d083e0848b3abc3a0abfc8876 *R/src.r
+183a12381f9df5ac9f8149c82db57dd0 *man/cvmsma.Rd
+0fa2c947a95870b3d1bede6685fc8af5 *man/msma-internal.Rd
+4cef7029a12bacf6b7db18b7de41eafc *man/msma-package.Rd
+6c4848c946225fd934c10803d44fb906 *man/msma.Rd
+f76557c4e112b7b6756cede2b9e68070 *man/ncompsearch.Rd
+16c395ad25e5f4be1596669f061227f6 *man/predict.msma.Rd
+17dbe4408b185fd8f13b66cfa782cae8 *man/regparasearch.Rd
+6b116e38a4da5f6766ba702df9ee543d *man/simdata.Rd
+679401aaf58512fbf33838d51f0a988d *man/summary.msma.Rd
