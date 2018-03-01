@@ -10,6 +10,8 @@
 #'
 #' @author Atsushi Kawaguchi. \email{kawa_a24@@yahoo.co.jp}
 #' @seealso \code{\link{msma}}
+#' @references 
+#' Kawaguchi A, Yamashita F (2017). Supervised Multiblock Sparse Multivariable Analysis with Application to Multimodal Brain Imaging Genetics. Biostatistics, 18(4) 651-665. 
 #' @import mvtnorm
 #' @importFrom graphics abline matplot plot 
 #' @importFrom stats cor predict quantile rbinom rnorm runif
@@ -20,7 +22,7 @@ NULL
 #'
 #' This is a function for a matrix decomposition method incorporating sparse and supervised modeling for a multiblock multivariable data analysis 
 #' 
-#' \code{msma} requires at least one input X as the matrix or the list. In this case, the (multiblock) principal components analysis is conducted. If Y is also specified, the partial least squares with X as explanatory variables and Y as objective variables. This function scaled each data matrix to mean 0 and variance 1 in the default. The block structure can be represented as the list. If Z is also specified, the supervised version is implemented and the degree is controlled by muX or muY where 0<=muX<=1, 0<=muY<=1, and 0<=muX+muY<1. If the positive lambdaX or lambdaY is specified, the sparse estimation based on L1 penalty is implemented. 
+#' \code{msma} requires at least one input X (a matrix or list). In this case, (multiblock) PCA is conducted. If Y is also specified, then a PLS is conducted using X as explanatory variables and Y as objective variables. This function scales each data matrix to a mean of 0 and variance of 1 in the default. The block structure can be represented as a list. If Z is also specified, a supervised version is implemented, and the degree is controlled by muX or muY, where 0 <= muX <= 1, 0 <= muY <= 1, and 0 <= muX + muY < 1. If a positive lambdaX or lambdaY is specified, then a sparse estimation based on the L1 penalty is implemented.
 #'
 #' @name msma
 #' @aliases msma
@@ -28,41 +30,42 @@ NULL
 #' @docType methods
 #' @export
 #'
-#' @param X a (list of) matrix, explanatory variable(s) which is required.
-#' @param Y a (list of) matrix, objective variable(s). This is optional. If no input for Y, then the PCA method is implemented.
-#' @param Z a vector, response variable(s). This is optional. The length is the number of subjects. If no input for Z, then the unsupervised PLS/PCA is implemented.
+#' @param X a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.
+#' @param Y a matrix or list of matrices indicating objective variable(s). This is optional. If there is no input for Y, then PCA is implemented.
+#' @param Z a vector, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.
 #' @param comp numeric scalar for the number of components to be considered.
-#' @param lambdaX numeric vector of regularized parameters for X with length equal to the number of blocks. If omitted, no regularization is conducted.
-#' @param lambdaY numeric vector of regularized parameters for Y with length equal to the number of blocks. If omitted, no regularization is conducted.
-#' @param eta numeric scalar, the parameter indexing the penalty family. This version has only the choice 1.
-#' @param type a character, the penalty family. This version has only the choice "lasso".
-#' @param inX a (list of) numeric vector to specify the variables of X which are always in the model. 
-#' @param inY a (list of) numeric vector to specify the variables of Y which are always in the model. 
-#' @param muX a numeric scalar for the weight of X for the supervised. 0<=muX<=1.
-#' @param muY a numeric scalar for the weight of Y for the supervised. 0<=muY<=1.
-#' @param defmethod a character, the deflation method, this version has only the choice "canonical". 
-#' @param scaling a logical, whether the scaling data is done, the default is TRUE. 
+#' @param lambdaX numeric vector of regularized parameters for X, with a length equal to the number of blocks. If lambdaX is omitted, no regularization is conducted.
+#' @param lambdaY numeric vector of regularized parameters for Y, with a length equal to the number of blocks. If lambdaY is omitted, no regularization is conducted.
+#' @param eta numeric scalar indicating the parameter indexing the penalty family. This version contains only choice 1.
+#' @param type a character, indicating the penalty family. In this version, only one choice is available: "lasso."
+#' @param inX a vector or list of numeric vectors specifying the variables in X, always included in the model
+#' @param inY a vector or list of numeric vectors specifying the variables in Y, always included in the model
+#' @param muX a numeric scalar for the weight of X for the supervised case. 0 <= muX <= 1.
+#' @param muY a numeric scalar for the weight of Y for the supervised case. 0 <= muY <= 1. 
+#' @param defmethod a character representing the deflation method. This version has only the choice "canonical." 
+#' @param scaling a logical, indicating whether or not data scaling is performed. The default is TRUE.
 #' @param verbose information
-#' @param x an object of class "\code{msma}", usually, a result of a call to \code{\link{msma}}
+#' @param intseed seed number for the random number in the parameter estimation algorithm.
+#' @param x an object of class "\code{msma}." Usually, a result of a call to \code{\link{msma}}
 #' @param ... further arguments passed to or from other methods.
-#' @return \item{dmode}{Which modes "PLS" or "PCA"}
-#' @return \item{X}{Scaled X which has a list form.}
-#' @return \item{Y}{Scaled Y which has a list form.}
-#' @return \item{Xscale}{Scaling information for X. The means and standard deviations for each block of X are returned.}
-#' @return \item{Yscale}{Scaling information for Y. The means and standard deviations for each block of Y are returned.}
-#' @return \item{comp}{the number of components}
-#' @return \item{wbX}{block loading for X. The list has same length as that of the input list X (the number of blocks) and consists of the matrix with the number of variables in the row and the number of components in the column.}
-#' @return \item{sbX}{block score for X. The list has same length as that of the input list X (the number of blocks) and consists of the matrix with the number of subjects in the row and the number of components in the column.}
-#' @return \item{wbY}{block loading for Y. The list has same length as that of the input list Y (the number of blocks) and consists of the matrix with the number of variables in the row and the number of components in the column.}
-#' @return \item{sbY}{block score for Y. The list has same length as that of the input list Y (the number of blocks) and consists of the matrix with the number of subjects in the row and the number of components in the column.}
-#' @return \item{ssX}{super score for X. The matrix has the number of subjects in the row and the number of components in the column.}
-#' @return \item{wsX}{super loading for X. The matrix has the number of blocks in the row and the number of components in the column.}
-#' @return \item{ssY}{super score for Y. The matrix has the number of subjects in the row and the number of components in the column.}
-#' @return \item{wsY}{super loading for Y. The matrix has the number of blocks in the row and the number of components in the column.}
-#' @return \item{nzwbX}{number of nonzeros in block loading for X}
-#' @return \item{nzwbY}{number of nonzeros in block loading for Y}
-#' @return \item{selectXnames}{names of selected variables for X. This returns the names of X}
-#' @return \item{selectYnames}{names of selected variables for Y. This returns the names of Y}
+#' @return \item{dmode}{Indicates mode "PLS" or "PCA"}
+#' @return \item{X}{Scaled X, which has a list form.}
+#' @return \item{Y}{Scaled Y, which has a list form.}
+#' @return \item{Xscale}{Scaling information for X. The mean and standard deviation values for each block of X are returned.}
+#' @return \item{Yscale}{Scaling information for Y. The mean and standard deviation values for each block of Y are returned.}
+#' @return \item{comp}{Number of components}
+#' @return \item{wbX}{Block loading for X. The list has the same length as that of the input list X (number of blocks) and consists of a matrix. The number of variables is present in the row and the number of components is present in the column.}
+#' @return \item{sbX}{Block score for X. The list has the same length as that of the input list X (number of blocks) and consists of a matrix, with the number of subjects in the row and the number of components in the column.}
+#' @return \item{wbY}{Block loading for Y. The list has same length as that of the input list Y (number of blocks) and consists of a matrix, with the number of variables in the row and the number of components in the column.}
+#' @return \item{sbY}{Block score for Y. The list has same length as that of the input list Y (number of blocks) and consists of a matrix, with the number of subjects in the row and the number of components in the column.}
+#' @return \item{ssX}{Super score for X. In the matrix, the number of subjects is in the row and the number of components is in the column.}
+#' @return \item{wsX}{Super loading for X. In the matrix, the number of blocks is in the row and the number of components is in the column.}
+#' @return \item{ssY}{Super score for Y. In the matrix, the number of subjects is in the row and the number of components is in the column.}
+#' @return \item{wsY}{Super loading for Y. In the matrix, the number of blocks is in the row and the number of components is in the column.}
+#' @return \item{nzwbX}{Number of nonzeros in block loading for X}
+#' @return \item{nzwbY}{Number of nonzeros in block loading for Y}
+#' @return \item{selectXnames}{Names of selected variables for X. This returns from the original names of X}
+#' @return \item{selectYnames}{Names of selected variables for Y. This returns from the original names of Y}
 #'
 #' @examples
 #' ##### data #####
@@ -95,7 +98,7 @@ msma = function(X, ...) UseMethod("msma")
 #' @rdname msma
 #' @method msma default
 #' @export
-msma.default = function(X, Y=NULL, Z=NULL, comp=2, lambdaX=NULL, lambdaY=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, defmethod = "canonical", scaling = TRUE, verbose=FALSE, ...)
+msma.default = function(X, Y=NULL, Z=NULL, comp=2, lambdaX=NULL, lambdaY=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, defmethod = "canonical", scaling = TRUE, verbose=FALSE, intseed=1, ...)
 {
 ##### Requirement #####
 if(missing(X)) stop("X should be specified")
@@ -103,11 +106,13 @@ if(missing(X)) stop("X should be specified")
 if(is.null(Y)){ 
 dmode = "PCA"
 Y = X
-if(!is.null(lambdaY)) stop("lambdaY can not be specified")
+if(!is.null(lambdaY)) stop("lambdaY should be specified")
 }else
 {
 dmode = "PLS"
 }
+
+if(dmode == "PCA"){ lambdaY=lambdaX}
 
 if(class(X) != "list") X = list(X)
 if(class(Y) != "list") Y = list(Y)
@@ -174,7 +179,7 @@ Xd = X; Yd = Y; out = cpevX = cpevY = list(); bic = bicX = bicY = reproduct = pr
 for(ncomp in 1:comp){
 
 ##### Fit #####
-out[[ncomp]] = out1 = msma_OneComp(Xd, Yd, Z, lambdaX, lambdaY, eta, type, inX, inY, muX, muY, dmode, verbose)
+out[[ncomp]] = out1 = msma_OneComp(X=Xd, Yd, Z, lambdaX, lambdaY, eta, type, inX, inY, muX, muY, dmode, verbose, intseed)
 
 ##### arrange #####
 sbX = lapply(1:Xnb, function(x){ do.call(cbind, lapply(out, function(y) y$sbX[[x]]))})
@@ -211,7 +216,7 @@ predictiv[ncomp] = cor(out1$ssY, Z)^2
 ##### Information Criteria #####
 if(dmode == "PCA"){ 
 tmpse = sum(unlist(lapply(Xd, function(x) sum(x^2))))
-print(tmpse)
+#print(tmpse)
 bic[ncomp] = log(tmpse/(n*sum(Xps))) + log(n*sum(Xps))/(n*sum(Xps))*(sum(nzwbX))
 }else
 {
@@ -319,7 +324,7 @@ cat("\n")
 #'
 #' summary method for class "msma". 
 #'
-#' This function provide the summary of results .
+#' This function provides a summary of results.
 #'
 #' @name summary.msma
 #' @aliases summary.msma
@@ -328,7 +333,7 @@ cat("\n")
 #' @docType methods
 #' @export
 #'
-#' @param object,x an object of class "\code{msma}", usually, a result of a call to \code{\link{msma}}
+#' @param object,x an object of class "\code{msma}." Usually, a result of a call to \code{\link{msma}}
 #' @param ... further arguments passed to or from other methods.
 #'
 #' @examples
@@ -383,7 +388,7 @@ cat("\n")
 #'
 #' predict method for class "msma". 
 #'
-#' This function provide the prediction from new data based on the msma fit and is mainly used in the cross-validation
+#' This function produces a prediction from new data based on \code{\link{msma}} fit. It is mainly used in cross-validation
 #'
 #' @name predict.msma
 #' @aliases predict.msma
@@ -392,13 +397,15 @@ cat("\n")
 #' @docType methods
 #' @export
 #'
-#' @param object an object of class "\code{msma}", usually, a result of a call to \code{msma}
-#' @param newX a matrix in which to look for variables with which to predict X required.
-#' @param newY a matrix in which to look for variables with which to predict Y.
+#' @param object an object of class "\code{msma}." Usually, a result of a call to \code{msma}
+#' @param newX a matrix in which to look for the variables used to predict X. This is required.
+#' @param newY a matrix in which to look for the variables used to predict Y.
 #' @param ... further arguments passed to or from other methods.
 #'
 #' @return \item{X}{predicted X}
+#' @return \item{sbX}{block score for X}
 #' @return \item{Y}{predicted Y}
+#' @return \item{sbY}{block score for Y}
 #'
 #' @examples
 #' ##### data #####
@@ -443,18 +450,18 @@ sbY = lapply(1:Ynb, function(x) newY[[x]] %*% object$wbY[[x]] )
 predY = lapply(1:Ynb, function(x) cbind(sbY[[x]]) %*% project(newY[[x]], sbY[[x]]))
 }else
 {
-predY = NULL
+predY = sbY = NULL
 }
 
 ##### Output #####
-list(X = predX, Y = predY)
+list(X = predX, sbX = sbX, Y = predY, sbY = sbY)
 }
 
 #' Cross-Validation
 #'
-#' cross-validated method to evaluate the fit of msma. 
+#' Cross-validated method to evaluate the fit of msma.
 #'
-#' k-fold cross-validation for \code{msma}. The evaluation is based on the matrix element wise errors.
+#' k-fold cross-validation for \code{msma}. The evaluation is based on the matrix element-wise errors.
 #'
 #' @name cvmsma
 #' @aliases cvmsma
@@ -462,22 +469,23 @@ list(X = predX, Y = predY)
 #' @docType methods
 #' @export
 #'
-#' @param X a (list of) matrix, explanatory variable(s) which is required.
-#' @param Y a (list of) matrix, objective variable(s). This is optional. If no input for Y, then the PCA method is implemented.
-#' @param Z a vector, response variable(s). This is optional. The length is the number of subjects. If no input for Z, then the unsupervised PLS/PCA is implemented.
+#' @param X a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.
+#' @param Y a matrix or list of matrices indicating objective variable(s). This is optional. If there is no input for Y, then PCA is implemented.
+#' @param Z a vector, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.
 #' @param comp numeric scalar for the number of components to be considered.
-#' @param muX a numeric scalar for the weight of X for the supervised. 0<=muX<=1.
-#' @param muY a numeric scalar for the weight of Y for the supervised. 0<=muY<=1.
-#' @param lambdaX numeric vector of regularized parameters for X with length equal to the number of blocks. If omitted, no regularization is conducted.
-#' @param lambdaY numeric vector of regularized parameters for Y with length equal to the number of blocks. If omitted, no regularization is conducted.
-#' @param eta numeric scalar, the parameter indexing the penalty family. This version has only the choice 1.
-#' @param type a character, the penalty family. This version has only the choice "lasso".
-#' @param inX a (list of) numeric vector to specify the variables of X which are always in the model. 
-#' @param inY a (list of) numeric vector to specify the variables of Y which are always in the model. 
-#' @param nfold number of folds - default is 5. 
-#' @param seed number of seed for the random number. 
+#' @param lambdaX numeric vector of regularized parameters for X, with a length equal to the number of blocks. If lambdaX is omitted, no regularization is conducted.
+#' @param lambdaY numeric vector of regularized parameters for Y, with a length equal to the number of blocks. If lambdaY is omitted, no regularization is conducted.
+#' @param eta numeric scalar indicating the parameter indexing the penalty family. This version contains only choice 1.
+#' @param type a character, indicating the penalty family. In this version, only one choice is available: "lasso."
+#' @param inX a vector or list of numeric vectors specifying the variables in X, always included in the model
+#' @param inY a vector or list of numeric vectors specifying the variables in Y, always included in the model
+#' @param muX a numeric scalar for the weight of X for the supervised case. 0 <= muX <= 1.
+#' @param muY a numeric scalar for the weight of Y for the supervised case. 0 <= muY <= 1. 
+#' @param nfold number of folds - default is 5.
+#' @param seed seed number for the random number in the cross-validation.
+#' @param intseed seed number for the random number in the parameter estimation algorithm.
 #' 
-#' @return \item{err}{The mean cross-validated errors which has three elements consisting of the mean of errors for X and Y, the errors for X and for Y in the PLS and only the errors for X in the PCA.}
+#' @return \item{err}{The mean cross-validated errors which has three elements consisting of the mean of predict errors for X and Y, the errors for X and for Y in the PLS and only the errors for X in the PCA.}
 #'
 #' @examples
 #'##### data #####
@@ -492,7 +500,7 @@ list(X = predX, Y = predY)
 #'cv2 = cvmsma(X, Y, comp = 2, lambdaX=2, lambdaY=1:3, nfold=5, seed=1)
 #'cv2
 #'
-cvmsma = function(X, Y=NULL, Z=NULL, comp=1, lambdaX, lambdaY=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, nfold=5, seed=1){
+cvmsma = function(X, Y=NULL, Z=NULL, comp=1, lambdaX, lambdaY=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, nfold=5, seed=1, intseed=1){
 ##### Requirement #####
 if(missing(X)) stop("X should be specified")
 if(is.null(Y)){ 
@@ -558,7 +566,7 @@ tmpZ = Z[!(fold == i),]
 testZ = Z[(fold == i),]
 }
 
-fit = msma(tmpX, tmpY, tmpZ, comp, lambdaX=lambdaX, lambdaY=lambdaY, eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY)
+fit = msma(tmpX, tmpY, tmpZ, comp, lambdaX=lambdaX, lambdaY=lambdaY, eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY, intseed=intseed)
 test = predict(fit, newX=testX, newY=testY)
 
 #testX = lapply(1:length(testX), function(x) scale(testX[[x]], center=fit$Xscale[[x]]$`scaled:center`, scale=fit$Xscale[[x]]$`scaled:scale`))
@@ -591,9 +599,9 @@ list(err = err)
 
 #' Search for Number of Components
 #'
-#' Determination for the number of components based on cross-validated method or the Bayesian information criterion (BIC)
+#' Determination of the number of components based on cross-validated method or Bayesian information criterion (BIC)
 #'
-#' This function provide an implementation of a search the optimal number of components. 
+#' This function searches for the optimal number of components.
 #'
 #' @name ncompsearch
 #' @aliases ncompsearch
@@ -601,28 +609,31 @@ list(err = err)
 #' @docType methods
 #' @export
 #'
-#' @param X a (list of) matrix, explanatory variable(s) which is required.
-#' @param Y a (list of) matrix, objective variable(s). This is optional. If no input for Y, then the PCA method is implemented.
-#' @param Z a vector, response variable(s). This is optional. The length is the number of subjects. If no input for Z, then the unsupervised PLS/PCA is implemented.
-#' @param muX a numeric scalar for the weight of X for the supervised. 0<=muX<=1.
-#' @param muY a numeric scalar for the weight of Y for the supervised. 0<=muY<=1.
-#' @param comps numeric vector for the candidates of the numbers of components to be selected.
-#' @param lambdaX numeric vector of regularized parameters for X with length equal to the number of blocks. If omitted, no regularization is conducted.
-#' @param lambdaY numeric vector of regularized parameters for Y with length equal to the number of blocks. If omitted, no regularization is conducted.
-#' @param eta numeric scalar, the parameter indexing the penalty family. This version has only the choice 1.
-#' @param type a character, the penalty family. This version has only the choice "lasso".
-#' @param inX a (list of) numeric vector to specify the variables of X which are always in the model. 
-#' @param inY a (list of) numeric vector to specify the variables of X which are always in the model. 
+#' @param X a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.
+#' @param Y a matrix or list of matrices indicating objective variable(s). This is optional. If there is no input for Y, then PCA is implemented.
+#' @param Z a vector, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.
+#' @param comps numeric vector for the candidates for the numbers of components to be selected.
+#' @param lambdaX numeric vector of regularized parameters for X, with a length equal to the number of blocks. If lambdaX is omitted, no regularization is conducted.
+#' @param lambdaY numeric vector of regularized parameters for Y, with a length equal to the number of blocks. If lambdaY is omitted, no regularization is conducted.
+#' @param eta numeric scalar indicating the parameter indexing the penalty family. This version contains only choice 1.
+#' @param type a character, indicating the penalty family. In this version, only one choice is available: "lasso."
+#' @param inX a vector or list of numeric vectors specifying the variables in X, always included in the model
+#' @param inY a vector or list of numeric vectors specifying the variables in Y, always included in the model
+#' @param muX a numeric scalar for the weight of X for the supervised case. 0 <= muX <= 1.
+#' @param muY a numeric scalar for the weight of Y for the supervised case. 0 <= muY <= 1. 
 #' @param nfold number of folds - default is 5. 
 #' @param x an object of class "\code{ncompsearch}", usually, a result of a call to \code{ncompsearch}
 #' @param regpara logical, If TRUE, the regularized parameters search is also conducted simultaneously.
 #' @param maxrep numeric scalar for the number of iteration.
-#' @param method a character, the evaluation method, "CV" for cross-validation based on matrix element-wise error, and "BIC" for Bayesian information criteria. The default is the BIC.
+#' @param minpct minimum candidate parameters defined as a percentile of automatically determined (possible) candidates.
+#' @param maxpct maximum candidate parameters defined as a percentile of automatically determined (possible) candidates.
+#' @param criterion a character, the evaluation criterion, "CV" for cross-validation, based on a matrix element-wise error, and "BIC" for Bayesian information criteria. The "BIC" is the default.
+#' @param intseed seed number for the random number in the parameter estimation algorithm.
 #' @param ... further arguments passed to or from other methods.
 #' 
 #' @return \item{comps}{numbers of components}
 #' @return \item{mincriterion}{minimum criterion value}
-#' @return \item{criterions}{criterion values}
+#' @return \item{criteria}{criterion values}
 #' @return \item{optncomp}{optimal number of components with the minimum criteria value}
 #' 
 #' @examples
@@ -634,22 +645,22 @@ list(err = err)
 #' ncomp1 = ncompsearch(X, Y, comps = c(1, 5, 10*(1:5)), nfold=5)
 #' plot(ncomp1)
 #'
-ncompsearch = function(X, Y=NULL, Z=NULL, comps=1:3, lambdaX=NULL, lambdaY=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, nfold=5, regpara=FALSE, maxrep=3, method=c("BIC", "CV")[1]){
+ncompsearch = function(X, Y=NULL, Z=NULL, comps=1:3, lambdaX=NULL, lambdaY=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, nfold=5, regpara=FALSE, maxrep=3, minpct=0, maxpct=1, criterion=c("BIC", "CV")[1], intseed=1){
 
-if(method=="BIC" & !regpara){
-cves = msma(X, Y, Z, comp = max(comps), lambdaX=lambdaX, lambdaY=lambdaY, eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY)$bic
+if(criterion=="BIC" & !regpara){
+cves = msma(X, Y, Z, comp = max(comps), lambdaX=lambdaX, lambdaY=lambdaY, eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY, intseed=intseed)$bic
 comps = 1:max(comps)
 }else{
 cv2 = lapply(comps, function(x) {
 if(regpara){
-cveout = regparasearch(X, Y, Z, eta, type, inX=inX, inY=inY, muX = muX, muY = muY, comp=x, nfold=nfold, maxrep=maxrep, method=method)
+cveout = regparasearch(X, Y, Z, eta, type, inX=inX, inY=inY, muX = muX, muY = muY, comp=x, nfold=nfold, maxrep=maxrep, minpct=minpct, maxpct=maxpct, criterion=criterion)
 cve = cveout$mincriterion; lambdaX = cveout$optlambdaX; lambdaY = cveout$optlambdaY
 }else
 {
-if(method=="CV"){
-cve = cvmsma(X, Y, Z, comp=x, lambdaX=lambdaX, lambdaY=lambdaY, eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY, nfold=nfold)$err[1]
-}else if(method=="BIC"){
-cve = msma(X, Y, Z, comp=x, lambdaX=lambdaX, lambdaY=lambdaY, eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY)$bic[x]
+if(criterion=="CV"){
+cve = cvmsma(X, Y, Z, comp=x, lambdaX=lambdaX, lambdaY=lambdaY, eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY, nfold=nfold, intseed=intseed)$err[1]
+}else if(criterion=="BIC"){
+cve = msma(X, Y, Z, comp=x, lambdaX=lambdaX, lambdaY=lambdaY, eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY, intseed=intseed)$bic[x]
 }
 }
 list(cve = cve, lambdaX=lambdaX, lambdaY=lambdaY)
@@ -662,13 +673,13 @@ cves = unlist(lapply(cv2, function(x) x$cve))
 optidx = which.min(cves)
 optncomp = comps[optidx]
 mincriterion = cves[optidx]
-if(method=="BIC" & !regpara){
+if(criterion=="BIC" & !regpara){
 optlambdaX = lambdaX; optlambdaY = lambdaY
 }else{
 optlambdaX = cv2[[optidx]]$lambdaX; optlambdaY = cv2[[optidx]]$lambdaY
 }
 
-out=list(method=method, comps=comps, mincriterion=mincriterion, criterions=cves, optncomp=optncomp, optlambdaX = optlambdaX, optlambdaY = optlambdaY)
+out=list(criterion=criterion, comps=comps, mincriterion=mincriterion, criteria=cves, optncomp=optncomp, optlambdaX = optlambdaX, optlambdaY = optlambdaY)
 class(out) = "ncompsearch"
 out
 }
@@ -686,9 +697,9 @@ cat("\n")
 #' @method plot ncompsearch
 #' @export
 plot.ncompsearch = function(x,...){
-#ylim = range(pretty(x$criterions))
-ylab1 = ifelse(x$method == "CV", "CV error", "BIC")
-plot(x$comps, x$criterions, type="b", xlab="Number of Components", ylab=ylab1,...)
+#ylim = range(pretty(x$criteria))
+ylab1 = ifelse(x$criterion == "CV", "CV error", "BIC")
+plot(x$comps, x$criteria, type="b", xlab="Number of Components", ylab=ylab1,...)
 abline(v=x$optncomp, lty=2, col=2)
 abline(v=x$optncomp2, lty=2, col=3)
 }
@@ -698,7 +709,7 @@ abline(v=x$optncomp2, lty=2, col=3)
 #'
 #' Regularized parameters search method for "msma". 
 #'
-#' This is a function to search regularized parameters of sparseness lambdaX and lambdaY for \code{msma}. The initial range of candidates are computed based on the fit with the values of regularized parameters of 0. The binary search is conducted for the divided parameter range into two regions. The representative value for the region is a median and the optimal region is selected with the minimum criteria obtained from the fit with the value. The CV error or BIC can be used as criteria. The selected region is also divided into two region and the same process is iterated by \code{maxrep} times. Thus, the final median value in the selected region is set to be the optimal regularized parameter. The search is conducted with combinations of parameters for X and Y. The range of candidates for regularized parameters can be restricted with the percentile of the limit (minimum or maximum) of the range.
+#' This is a function for identifying the regularized parameters of sparseness lambdaX and lambdaY for \code{msma}. The initial range of candidates is computed based on fit, with regularized parameter values of 0. A binary search is conducted for dividing the parameter range into two regions. The representative value for the region is a median value, and the optimal region is selected using the minimum criteria obtained from the fit with that median value. The CV error or BIC can be used as criteria. The selected region is also divided into two region and the same process is iterated by maxrep times. Thus, the final median value in the selected region is set to be the optimal regularized parameter. The search is conducted with combinations of parameters for X and Y. The range of candidates for regularized parameters can be restricted, with a percentile of the limit (minimum or maximum) for the range.
 #'
 #' @name regparasearch
 #' @aliases regparasearch
@@ -706,28 +717,29 @@ abline(v=x$optncomp2, lty=2, col=3)
 #' @docType methods
 #' @export
 #'
-#' @param X a (list of) matrix, explanatory variable(s) which is required.
-#' @param Y a (list of) matrix, objective variable(s). This is optional. If no input for Y, then the PCA method is implemented.
-#' @param Z a vector, response variable(s). This is optional. The length is the number of subjects. If no input for Z, then the unsupervised PLS/PCA is implemented.
+#' @param X a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.
+#' @param Y a matrix or list of matrices indicating objective variable(s). This is optional. If there is no input for Y, then PCA is implemented.
+#' @param Z a vector, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.
 #' @param comp numeric scalar for the number of components to be considered.
-#' @param eta numeric scalar, the parameter indexing the penalty family. This version has only the choice 1.
-#' @param type a character, the penalty family. This version has only the choice "lasso".
-#' @param inX a (list of) numeric vector to specify the variables of X which are always in the model. 
-#' @param inY a (list of) numeric vector to specify the variables of X which are always in the model. 
-#' @param muX a numeric scalar for the weight of X for the supervised. 0<=muX<=1.
-#' @param muY a numeric scalar for the weight of Y for the supervised. 0<=muY<=1.
-#' @param nfold number of folds - default is 5. 
-#' @param maxrep numeric scalar for the number of iteration.
-#' @param minpct percent of minimum candidate parameters.
-#' @param maxpct percent of maximum candidate parameters.
-#' @param method a character, the evaluation method, "CV" for cross-validation based on matrix element-wise error, and "BIC" for Bayesian information criteria. The default is the BIC.
+#' @param eta numeric scalar indicating the parameter indexing the penalty family. This version contains only choice 1.
+#' @param type a character, indicating the penalty family. In this version, only one choice is available: "lasso."
+#' @param inX a vector or list of numeric vectors specifying the variables in X, always included in the model
+#' @param inY a vector or list of numeric vectors specifying the variables in Y, always included in the model
+#' @param muX a numeric scalar for the weight of X for the supervised case. 0 <= muX <= 1.
+#' @param muY a numeric scalar for the weight of Y for the supervised case. 0 <= muY <= 1. 
+#' @param nfold number of folds. Default is 5.
+#' @param maxrep numeric scalar for the number of iterations.
+#' @param minpct minimum candidate parameters defined as a percentile of automatically determined (possible) candidates.
+#' @param maxpct maximum candidate parameters defined as a percentile of automatically determined (possible) candidates.
+#' @param criterion a character, the evaluation criterion, "CV" for cross-validation, based on a matrix element-wise error, and "BIC" for Bayesian information criteria. The "BIC" is the default.
 #' @param x an object of class "\code{regparasearch}", usually, a result of a call to \code{regparasearch}
+#' @param intseed seed number for the random number in the parameter estimation algorithm.
 #' @param ... further arguments passed to or from other methods.
 #' 
 #' @return \item{optlambdaX}{Optimal parameters for X}
 #' @return \item{optlambdaY}{Optimal parameters for Y}
 #' @return \item{mincriterion}{Minimum criterion value}
-#' @return \item{criterions}{All resulting criterion values in the process}
+#' @return \item{criteria}{All resulting criterion values in the process}
 #' @return \item{pararange}{Range of candidates parameters}
 #'
 #' @examples
@@ -746,14 +758,14 @@ abline(v=x$optncomp2, lty=2, col=3)
 #' opt2 = regparasearch(X, Y, comp=1, nfold=5, maxrep=2, minpct=0.5)
 #' opt2
 #'
-regparasearch = function(X, Y=NULL, Z=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, comp=1, nfold=5, maxrep=3, minpct=0, maxpct=1, method=c("BIC","CV")[1]){
+regparasearch = function(X, Y=NULL, Z=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, comp=1, nfold=5, maxrep=3, minpct=0, maxpct=1, criterion=c("BIC","CV")[1], intseed=1){
 ##### Requirement #####
 if(missing(X)) stop("X should be specified")
 if(minpct>=1 | minpct<0) stop("minpct should be 0 <= minpct < 1")
 if(maxpct>1 | maxpct<=0) stop("maxpct should be 0 < maxpct <= 1")
 
 ##### Candidates for Regularized Parameters #####
-intfit = msma(X, Y, Z, comp=1, lambdaX=rep(NULL, length(X)), lambdaY=rep(NULL, length(Y)), eta=eta, type=type, inX=inX, inY=inY)
+intfit = msma(X, Y, Z, comp=1, lambdaX=rep(NULL, length(X)), lambdaY=rep(NULL, length(Y)), eta=eta, type=type, inX=inX, inY=inY, intseed=intseed)
 if(!is.null(Y)){intweight = list(X=intfit$wbX, Y=intfit$wbY)}else{intweight = list(X=intfit$wbX)}
 lambdaXYcands = lapply(intweight, function(y) do.call(rbind, lapply(y, function(x) cand4lambda(x, 2)[2])))
 
@@ -767,7 +779,7 @@ pararange = lapply(lambdaXYcands, function(y) apply(y, 1, function(y1) c(y1*minp
 range1s = do.call(cbind, pararange)
 
 ##### Iteration Start #####
-criterions = list(); length(criterions) = maxrep
+criteria = list(); length(criteria) = maxrep
 for(repidx in 1:maxrep){
 quans = apply(range1s, 2, function(x){quantile(seq(x[1], x[2], length=10000))})
 cands = apply(idx, 1, function(x){
@@ -786,17 +798,17 @@ colnames(quans) = rownames(cands) = c(paste("lambdaX", 1:nblocks[1], sep=""))
 ##### CV for number of Regularized Parameters #####
 cv3 = apply(cands, 2, function(x){
 if(!is.null(Y)){
-if(method=="CV"){
-cvmsma(X, Y, Z, comp = comp, lambdaX=x[colidx$X], lambdaY=x[colidx$Y], eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY, nfold=nfold)$err[1]
-}else if(method=="BIC"){
-msma(X, Y, Z, comp = comp, lambdaX=x[colidx$X], lambdaY=x[colidx$Y], eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY)$bic[comp]
+if(criterion=="CV"){
+cvmsma(X, Y, Z, comp = comp, lambdaX=x[colidx$X], lambdaY=x[colidx$Y], eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY, nfold=nfold, intseed=intseed)$err[1]
+}else if(criterion=="BIC"){
+msma(X, Y, Z, comp = comp, lambdaX=x[colidx$X], lambdaY=x[colidx$Y], eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY, intseed=intseed)$bic[comp]
 }
 }else
 {
-if(method=="CV"){
-cvmsma(X, Y, Z, comp = comp, lambdaX=x[colidx$X], lambdaY=NULL, eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY, nfold=nfold)$err[1]
-}else if(method=="BIC"){
-msma(X, Y, Z, comp = comp, lambdaX=x[colidx$X], lambdaY=NULL, eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY)$bic[comp]
+if(criterion=="CV"){
+cvmsma(X, Y, Z, comp = comp, lambdaX=x[colidx$X], lambdaY=NULL, eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY, nfold=nfold, intseed=intseed)$err[1]
+}else if(criterion=="BIC"){
+msma(X, Y, Z, comp = comp, lambdaX=x[colidx$X], lambdaY=NULL, eta=eta, type=type, inX=inX, inY=inY, muX = muX, muY = muY, intseed=intseed)$bic[comp]
 }
 }
 })
@@ -804,7 +816,7 @@ msma(X, Y, Z, comp = comp, lambdaX=x[colidx$X], lambdaY=NULL, eta=eta, type=type
 ##### #####
 optidx = which.min(cv3)
 
-criterions[[repidx]] = rbind(cands, criterion=cv3)
+criteria[[repidx]] = rbind(cands, criterion=cv3)
 
 ranidx = sapply(idx[optidx,], function(x) c(x-1, x+1)); 
 range1s = sapply(1:totalnblocks, function(x) quans[ranidx[,x], x])
@@ -812,8 +824,8 @@ range1s = sapply(1:totalnblocks, function(x) quans[ranidx[,x], x])
 }
 
 ##### #####
-optidx = which.min(unlist(lapply(criterions, function(x) min(x["criterion",]))))
-cands = criterions[[optidx]]; 
+optidx = which.min(unlist(lapply(criteria, function(x) min(x["criterion",]))))
+cands = criteria[[optidx]]; 
 optidx = which.min(cands["criterion",])
 mincriterion = cands["criterion",optidx]
 cands = cands[!(rownames(cands) %in% "criterion"), ]
@@ -824,10 +836,10 @@ optlambda = list(X=cands[colidx$X, optidx], Y=cands[colidx$Y, optidx])
 {
 optlambda = list(X=cands[colidx$X, optidx])
 }
-names(criterions) = paste("Step", 1:length(criterions))
+names(criteria) = paste("Step", 1:length(criteria))
 
 ##### #####
-out=list(method=method, optlambdaX = optlambda$X, optlambdaY = optlambda$Y, mincriterion=mincriterion, criterions=criterions, pararange=pararange)
+out=list(criterion=criterion, optlambdaX = optlambda$X, optlambdaY = optlambda$Y, mincriterion=mincriterion, criteria=criteria, pararange=pararange)
 class(out) = "regparasearch"
 out
 }
@@ -846,6 +858,113 @@ cat("\n")
 }
 }
 
+#' Parameters Search
+#'
+#' Combined method for optimizing the number of components and regularized parameters for "msma". 
+#'
+#' A function for identifying the regularized sparseness parameters lambdaX and lambdaY and the number of components for \code{msma}. Four search methods are available. The "simultaneous" method identifies the number of components by searching the regularized parameters in each component. The "regpara1st" identifies the regularized parameters by fixing the number of components, then searching for the number of components with the selected regularized parameters. The "ncomp1st" method identifies the number of components with a regularized parameter of 0, then searches for the regularized parameters with the selected number of components. The "regparaonly" method searches for the regularized parameters with a fixed number of components.
+#'
+#' @name optparasearch
+#' @aliases optparasearch
+#' @rdname optparasearch
+#' @docType methods
+#' @export
+#'
+#' @param X a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.
+#' @param Y a matrix or list of matrices indicating objective variable(s). This is optional. If there is no input for Y, then PCA is implemented.
+#' @param Z a vector, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.
+#' @param search.method a character indicationg search methods, see Details. Default is "simultaneous".
+#' @param comp numeric scalar for the number of components to be considered or the maximum canditate number of components.
+#' @param eta numeric scalar indicating the parameter indexing the penalty family. This version contains only choice 1.
+#' @param type a character, indicating the penalty family. In this version, only one choice is available: "lasso."
+#' @param inX a vector or list of numeric vectors specifying the variables in X, always included in the model
+#' @param inY a vector or list of numeric vectors specifying the variables in Y, always included in the model
+#' @param muX a numeric scalar for the weight of X for the supervised case. 0 <= muX <= 1.
+#' @param muY a numeric scalar for the weight of Y for the supervised case. 0 <= muY <= 1. 
+#' @param nfold number of folds - default is 5. 
+#' @param maxrep numeric scalar for the number of iteration.
+#' @param minpct minimum candidate parameters defined as a percentile of automatically determined (possible) candidates.
+#' @param maxpct maximum candidate parameters defined as a percentile of automatically determined (possible) candidates.
+#' @param criterion a character, the evaluation criterion, "CV" for cross-validation, based on a matrix element-wise error, and "BIC" for Bayesian information criteria. The "BIC" is the default.
+#' @param x an object of class "\code{optparasearch}", usually, a result of a call to \code{optparasearch}
+#' @param intseed seed number for the random number in the parameter estimation algorithm.
+#' @param ... further arguments passed to or from other methods.
+#' 
+#' @return \item{optncomp}{Optimal number of components}
+#' @return \item{optlambdaX}{Optimal parameters for X}
+#' @return \item{optlambdaY}{Optimal parameters for Y}
+#' @return \item{mincriterion}{Minimum criterion value}
+#' @return \item{criteria}{All resulting criterion values in the process}
+#' @return \item{pararange}{Range of candidates parameters}
+#'
+#' @examples
+#' ##### data #####
+#' tmpdata = simdata(n = 50, rho = 0.8, Yps = c(10, 12, 15), Xps = 20, seed=1)
+#' X = tmpdata$X; Y = tmpdata$Y 
+#' 
+#' ##### Regularized parameters search #####
+#' opt1 = optparasearch(X, Y, search.method = "regparaonly", comp=1, nfold=5, maxrep=2)
+#' opt1
+#' fit4 = msma(X, Y, comp=opt1$optncomp, lambdaX=opt1$optlambdaX, lambdaY=opt1$optlambdaY)
+#' fit4
+#' summary(fit4)
+#'
+#' ##### Restrict search range #####
+#' opt2 = optparasearch(X, Y, comp=3, nfold=5, maxrep=2, minpct=0.5)
+#' opt2
+#'
+optparasearch = function(X, Y=NULL, Z=NULL, search.method = c("simultaneous", "regpara1st", "ncomp1st", "regparaonly")[1], eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, comp=1, nfold=5, maxrep=3, minpct=0, maxpct=1, criterion=c("BIC","CV")[1], intseed=1){
+
+comps1 = 1:comp
+
+##### both (regpara first) #####
+if(search.method == "regpara1st"){
+regpara1 = regparasearch(X=X, Y=Y, Z=Z, comp=comp, muX = muX, muY = muY, nfold=nfold, minpct=minpct, maxpct=maxpct, maxrep=maxrep, criterion=criterion)
+params = ncompsearch(X=X, Y=Y, Z=Z, comps = comps1, lambdaX=regpara1$optlambdaX, lambdaY=regpara1$optlambdaY, muX = muX, muY = muY, nfold=nfold, regpara=FALSE, criterion=criterion)
+##### both (ncomp first) #####
+}else if(search.method == "ncomp1st"){
+#params = ncompsearch(X=X, Y=Y, Z=Z, comps = min(c(min(unlist(lapply(X,dim))), min(unlist(lapply(Y,dim))))), muX = muX, muY = muY, nfold=nfold1, regpara=FALSE, criterion=criterion)
+params = ncompsearch(X=X, Y=Y, Z=Z, comps = comps1, muX = muX, muY = muY, nfold=nfold, regpara=FALSE, criterion=criterion)
+regpara1 = regparasearch(X=X, Y=Y, Z=Z, comp=params$optncomp, muX = muX, muY = muY, nfold=nfold, minpct=minpct, maxpct=maxpct, maxrep=maxrep, criterion=criterion)
+params$optlambdaX = regpara1$optlambdaX
+params$optlambdaY = regpara1$optlambdaY
+##### both (simultaneous, pct=1/ncomp) #####
+}else if(search.method == "simultaneous"){
+params = ncompsearch(X=X, Y=Y, Z=Z, comps = comps1, muX = muX, muY = muY, nfold=nfold, regpara=TRUE, maxrep=maxrep, minpct=minpct, maxpct=maxpct, criterion=criterion)
+##### regpara only (ncomp prespecified) #####
+}else if(search.method == "regparaonly"){
+params = list(optncomp = comp)
+regpara1 = regparasearch(X=X, Y=Y, Z=Z, comp=params$optncomp, muX = muX, muY = muY, nfold=nfold, minpct=minpct, maxpct=maxpct, maxrep=maxrep, criterion=criterion)
+params$optlambdaX = regpara1$optlambdaX
+params$optlambdaY = regpara1$optlambdaY
+params$cverrs = regpara1$cverrs
+params$mincverr = regpara1$mincverr
+}
+
+params$search.method = search.method
+class(params) = "optparasearch"
+
+params
+}
+
+#' @rdname optparasearch
+#' @method print optparasearch
+print.optparasearch = function(x, ...)
+{
+cat("Optimal number of components: ")
+cat(paste(x$optncomp, "(min CVE),"))
+cat("\n")
+cat("Optimal parameters: \n")
+cat("\n")
+print(round(x$optlambdaX, 3))
+cat("\n")
+if(!is.null(x$optlambdaY)){
+print(round(x$optlambdaY, 3))
+cat("\n")
+}
+}
+
+
 #' Internal functions
 #'
 #' These are internal functions for \code{msma}
@@ -854,23 +973,25 @@ cat("\n")
 #'
 #' @rdname msma-internal
 #' @keywords internal
-msma_OneComp = function(X, Y, Z=NULL, lambdaX=NULL, lambdaY=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, dmode = "PLS", verbose=FALSE){
+msma_OneComp = function(X, Y, Z=NULL, lambdaX=NULL, lambdaY=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, dmode = "PLS", verbose=FALSE, intseed=1){
 
 Ynb = length(Y); Xnb = length(X)
 
 if(any(is.null(lambdaX))){ lambdaX = rep(0, Xnb)}
 if(any(is.null(lambdaY))){ lambdaY = rep(0, Ynb)}
 
+if(dmode == "PCA"){ lambdaY=lambdaX}
+
 if(is.null(Z)) Z = rep(0, nrow(X[[1]]))
 muXY = 1 - muX - muY
-if(muXY < 0) stop("muX or muY should be smaller values to be 0 <= 1 - muX - muY <= 1.")
+if(muXY < -1.0e-16) stop(paste("Your muX and muY were", muX, "and", muY, ". muX or muY should be smaller values to be 0 <= 1 - muX - muY <= 1."))
 
 #svd0 = svd(do.call(cbind, Y)); ssY = normvec(svd0$u[,1])
 #ssY = normvec(rep(1, nrow(Y[[1]])))
-set.seed(1); ssY = normvec(rnorm(nrow(X[[1]])))
+set.seed(intseed); ssY = normvec(rnorm(nrow(X[[1]])))
 
-if(length(X) == 1){wsX = 1}else{ set.seed(1); wsX = normvec(rnorm(length(X)))}
-if(length(Y) == 1){wsY = 1}else{ set.seed(1); wsY = normvec(rnorm(length(Y)))}
+if(length(X) == 1){wsX = 1}else{ set.seed(intseed); wsX = normvec(rnorm(length(X)))}
+if(length(Y) == 1){wsY = 1}else{ set.seed(intseed); wsY = normvec(rnorm(length(Y)))}
 
 ##### Iteration #####
 itr = 1
@@ -917,7 +1038,7 @@ list(wbX=wbX, sbX=sbX, wbY=wbY, sbY=sbY, ssX=ssX, wsX=wsX, ssY=ssY, wsY=wsY)
 }
 
 #' @rdname msma-internal
-normvec = function(a){if(all(a == 0)){a}else{ c(a) / sqrt(crossprod(c(a)))}}
+normvec = function(a){if(all(a == 0)){a}else{ c(a) / sqrt(drop(crossprod(c(a))))}}
 
 #' @rdname msma-internal
 sparse = function(x, lam, eta=1, type="lasso", inidx=NULL){
@@ -976,7 +1097,7 @@ matserr = function(X1, X2) mean(sapply(1:length(X1), function(x) mean((X1[[x]]-X
 #'
 #' This is a function for generating multiblock data based on the multivariable normal distribution
 #' 
-#' The output is a list of matrics.
+#' The output is a list of matrices.
 #'
 #' @name simdata
 #' @aliases simdata
@@ -984,14 +1105,14 @@ matserr = function(X1, X2) mean(sapply(1:length(X1), function(x) mean((X1[[x]]-X
 #' @docType methods
 #' @export
 #'
-#' @param n a numeric scalar, sample size.
-#' @param rho a numeric scalar, correlation coefficient for all matrices.
-#' @param Yps a numeric vector, numbers of columns for Y. The length of vector corresponds to the number of blocks.
-#' @param Xps a numeric vector, numbers of columns for X. The length of vector corresponds to the number of blocks.
-#' @param seed a seed number for generating random numbers for the reproductivity and should be changed in the iterative study. 
+#' @param n a numeric scalar for sample size.
+#' @param rho a numeric scalar. Correlation coefficient for all matrices.
+#' @param Yps a numeric vector indicating the numbers of columns for Y. The length of the vector corresponds to the number of blocks.
+#' @param Xps a numeric vector indicating the numbers of columns for X. The length of the vector corresponds to the number of blocks.
+#' @param seed a seed number for generating random numbers for reproducibility. Should be changed in an iterative study.
 #'
-#' @return \item{X}{Simulated X which has a list form}
-#' @return \item{Y}{Simulated Y which has a list form}
+#' @return \item{X}{Simulated X, which has a list form}
+#' @return \item{Y}{Simulated Y, which has a list form}
 simdata = function(n = 100, rho = 0.8, Yps = c(100, 120, 150), Xps = 500, seed=1){
 
 if(length(n) > 1) stop("n should be scalar")
@@ -1032,7 +1153,7 @@ nZeroX = lapply(idxZeroX, function(x) unlist(lapply(x, length)))
 
 SUX = matrix(rnorm(n*ncomp), n, ncomp)
 UX = lapply(Xps, function(p) SUX/Xps)
-VX = lapply(1:length(Xps), function(x) do.call(rbind, lapply(1:ncomp, function(y){ v = rnorm(Xps[[x]]); v[idxZeroX[[x]][[y]]]=0; v})))
+VX = lapply(1:length(Xps), function(x){ v2=do.call(rbind, lapply(1:ncomp, function(y){ v = rnorm(Xps[[x]]); v[idxZeroX[[x]][[y]]]=0; v})); rownames(v2) = paste0("comp",1:ncomp); v2})
 
 X = lapply(1:length(Xps), function(x) UX[[x]] %*% ginv(t(VX[[x]])))
 

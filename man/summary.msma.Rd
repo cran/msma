@@ -2,8 +2,8 @@
 % Please edit documentation in R/src.r
 \docType{methods}
 \name{summary.msma}
-\alias{print.summary.msma}
 \alias{summary.msma}
+\alias{print.summary.msma}
 \title{Summarizing Fits}
 \usage{
 \method{summary}{msma}(object, ...)
@@ -11,7 +11,7 @@
 \method{print}{summary.msma}(x, ...)
 }
 \arguments{
-\item{object, x}{an object of class "\code{msma}", usually, a result of a call to \code{\link{msma}}}
+\item{object, x}{an object of class "\code{msma}." Usually, a result of a call to \code{\link{msma}}}
 
 \item{...}{further arguments passed to or from other methods.}
 }
@@ -19,7 +19,7 @@
 summary method for class "msma".
 }
 \details{
-This function provide the summary of results .
+This function provides a summary of results.
 }
 \examples{
 ##### data #####
@@ -31,4 +31,3 @@ fit1 = msma(X, Y, comp=1, lambdaX=2, lambdaY=1:3)
 summary(fit1)
 
 }
-

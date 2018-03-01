@@ -4,8 +4,8 @@
 \name{msma}
 \alias{msma}
 \alias{msma.default}
-\alias{plot.msma}
 \alias{print.msma}
+\alias{plot.msma}
 \title{Multiblock Sparse Multivariable Analysis}
 \usage{
 msma(X, ...)
@@ -13,89 +13,91 @@ msma(X, ...)
 \method{msma}{default}(X, Y = NULL, Z = NULL, comp = 2, lambdaX = NULL,
   lambdaY = NULL, eta = 1, type = "lasso", inX = NULL, inY = NULL,
   muX = 0, muY = 0, defmethod = "canonical", scaling = TRUE,
-  verbose = FALSE, ...)
+  verbose = FALSE, intseed = 1, ...)
 
 \method{print}{msma}(x, ...)
 
 \method{plot}{msma}(x, ...)
 }
 \arguments{
-\item{X}{a (list of) matrix, explanatory variable(s) which is required.}
+\item{X}{a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.}
 
 \item{...}{further arguments passed to or from other methods.}
 
-\item{Y}{a (list of) matrix, objective variable(s). This is optional. If no input for Y, then the PCA method is implemented.}
+\item{Y}{a matrix or list of matrices indicating objective variable(s). This is optional. If there is no input for Y, then PCA is implemented.}
 
-\item{Z}{a vector, response variable(s). This is optional. The length is the number of subjects. If no input for Z, then the unsupervised PLS/PCA is implemented.}
+\item{Z}{a vector, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.}
 
 \item{comp}{numeric scalar for the number of components to be considered.}
 
-\item{lambdaX}{numeric vector of regularized parameters for X with length equal to the number of blocks. If omitted, no regularization is conducted.}
+\item{lambdaX}{numeric vector of regularized parameters for X, with a length equal to the number of blocks. If lambdaX is omitted, no regularization is conducted.}
 
-\item{lambdaY}{numeric vector of regularized parameters for Y with length equal to the number of blocks. If omitted, no regularization is conducted.}
+\item{lambdaY}{numeric vector of regularized parameters for Y, with a length equal to the number of blocks. If lambdaY is omitted, no regularization is conducted.}
 
-\item{eta}{numeric scalar, the parameter indexing the penalty family. This version has only the choice 1.}
+\item{eta}{numeric scalar indicating the parameter indexing the penalty family. This version contains only choice 1.}
 
-\item{type}{a character, the penalty family. This version has only the choice "lasso".}
+\item{type}{a character, indicating the penalty family. In this version, only one choice is available: "lasso."}
 
-\item{inX}{a (list of) numeric vector to specify the variables of X which are always in the model.}
+\item{inX}{a vector or list of numeric vectors specifying the variables in X, always included in the model}
 
-\item{inY}{a (list of) numeric vector to specify the variables of Y which are always in the model.}
+\item{inY}{a vector or list of numeric vectors specifying the variables in Y, always included in the model}
 
-\item{muX}{a numeric scalar for the weight of X for the supervised. 0<=muX<=1.}
+\item{muX}{a numeric scalar for the weight of X for the supervised case. 0 <= muX <= 1.}
 
-\item{muY}{a numeric scalar for the weight of Y for the supervised. 0<=muY<=1.}
+\item{muY}{a numeric scalar for the weight of Y for the supervised case. 0 <= muY <= 1.}
 
-\item{defmethod}{a character, the deflation method, this version has only the choice "canonical".}
+\item{defmethod}{a character representing the deflation method. This version has only the choice "canonical."}
 
-\item{scaling}{a logical, whether the scaling data is done, the default is TRUE.}
+\item{scaling}{a logical, indicating whether or not data scaling is performed. The default is TRUE.}
 
 \item{verbose}{information}
 
-\item{x}{an object of class "\code{msma}", usually, a result of a call to \code{\link{msma}}}
+\item{intseed}{seed number for the random number in the parameter estimation algorithm.}
+
+\item{x}{an object of class "\code{msma}." Usually, a result of a call to \code{\link{msma}}}
 }
 \value{
-\item{dmode}{Which modes "PLS" or "PCA"}
+\item{dmode}{Indicates mode "PLS" or "PCA"}
 
-\item{X}{Scaled X which has a list form.}
+\item{X}{Scaled X, which has a list form.}
 
-\item{Y}{Scaled Y which has a list form.}
+\item{Y}{Scaled Y, which has a list form.}
 
-\item{Xscale}{Scaling information for X. The means and standard deviations for each block of X are returned.}
+\item{Xscale}{Scaling information for X. The mean and standard deviation values for each block of X are returned.}
 
-\item{Yscale}{Scaling information for Y. The means and standard deviations for each block of Y are returned.}
+\item{Yscale}{Scaling information for Y. The mean and standard deviation values for each block of Y are returned.}
 
-\item{comp}{the number of components}
+\item{comp}{Number of components}
 
-\item{wbX}{block loading for X. The list has same length as that of the input list X (the number of blocks) and consists of the matrix with the number of variables in the row and the number of components in the column.}
+\item{wbX}{Block loading for X. The list has the same length as that of the input list X (number of blocks) and consists of a matrix. The number of variables is present in the row and the number of components is present in the column.}
 
-\item{sbX}{block score for X. The list has same length as that of the input list X (the number of blocks) and consists of the matrix with the number of subjects in the row and the number of components in the column.}
+\item{sbX}{Block score for X. The list has the same length as that of the input list X (number of blocks) and consists of a matrix, with the number of subjects in the row and the number of components in the column.}
 
-\item{wbY}{block loading for Y. The list has same length as that of the input list Y (the number of blocks) and consists of the matrix with the number of variables in the row and the number of components in the column.}
+\item{wbY}{Block loading for Y. The list has same length as that of the input list Y (number of blocks) and consists of a matrix, with the number of variables in the row and the number of components in the column.}
 
-\item{sbY}{block score for Y. The list has same length as that of the input list Y (the number of blocks) and consists of the matrix with the number of subjects in the row and the number of components in the column.}
+\item{sbY}{Block score for Y. The list has same length as that of the input list Y (number of blocks) and consists of a matrix, with the number of subjects in the row and the number of components in the column.}
 
-\item{ssX}{super score for X. The matrix has the number of subjects in the row and the number of components in the column.}
+\item{ssX}{Super score for X. In the matrix, the number of subjects is in the row and the number of components is in the column.}
 
-\item{wsX}{super loading for X. The matrix has the number of blocks in the row and the number of components in the column.}
+\item{wsX}{Super loading for X. In the matrix, the number of blocks is in the row and the number of components is in the column.}
 
-\item{ssY}{super score for Y. The matrix has the number of subjects in the row and the number of components in the column.}
+\item{ssY}{Super score for Y. In the matrix, the number of subjects is in the row and the number of components is in the column.}
 
-\item{wsY}{super loading for Y. The matrix has the number of blocks in the row and the number of components in the column.}
+\item{wsY}{Super loading for Y. In the matrix, the number of blocks is in the row and the number of components is in the column.}
 
-\item{nzwbX}{number of nonzeros in block loading for X}
+\item{nzwbX}{Number of nonzeros in block loading for X}
 
-\item{nzwbY}{number of nonzeros in block loading for Y}
+\item{nzwbY}{Number of nonzeros in block loading for Y}
 
-\item{selectXnames}{names of selected variables for X. This returns the names of X}
+\item{selectXnames}{Names of selected variables for X. This returns from the original names of X}
 
-\item{selectYnames}{names of selected variables for Y. This returns the names of Y}
+\item{selectYnames}{Names of selected variables for Y. This returns from the original names of Y}
 }
 \description{
 This is a function for a matrix decomposition method incorporating sparse and supervised modeling for a multiblock multivariable data analysis
 }
 \details{
-\code{msma} requires at least one input X as the matrix or the list. In this case, the (multiblock) principal components analysis is conducted. If Y is also specified, the partial least squares with X as explanatory variables and Y as objective variables. This function scaled each data matrix to mean 0 and variance 1 in the default. The block structure can be represented as the list. If Z is also specified, the supervised version is implemented and the degree is controlled by muX or muY where 0<=muX<=1, 0<=muY<=1, and 0<=muX+muY<1. If the positive lambdaX or lambdaY is specified, the sparse estimation based on L1 penalty is implemented.
+\code{msma} requires at least one input X (a matrix or list). In this case, (multiblock) PCA is conducted. If Y is also specified, then a PLS is conducted using X as explanatory variables and Y as objective variables. This function scales each data matrix to a mean of 0 and variance of 1 in the default. The block structure can be represented as a list. If Z is also specified, a supervised version is implemented, and the degree is controlled by muX or muY, where 0 <= muX <= 1, 0 <= muY <= 1, and 0 <= muX + muY < 1. If a positive lambdaX or lambdaY is specified, then a sparse estimation based on the L1 penalty is implemented.
 }
 \examples{
 ##### data #####
@@ -124,4 +126,3 @@ fit5 = msma(X2, comp=5, lambdaX=2.5)
 summary(fit5)
 
 }
-

@@ -9,25 +9,24 @@ simdata(n = 100, rho = 0.8, Yps = c(100, 120, 150), Xps = 500,
   seed = 1)
 }
 \arguments{
-\item{n}{a numeric scalar, sample size.}
+\item{n}{a numeric scalar for sample size.}
 
-\item{rho}{a numeric scalar, correlation coefficient for all matrices.}
+\item{rho}{a numeric scalar. Correlation coefficient for all matrices.}
 
-\item{Yps}{a numeric vector, numbers of columns for Y. The length of vector corresponds to the number of blocks.}
+\item{Yps}{a numeric vector indicating the numbers of columns for Y. The length of the vector corresponds to the number of blocks.}
 
-\item{Xps}{a numeric vector, numbers of columns for X. The length of vector corresponds to the number of blocks.}
+\item{Xps}{a numeric vector indicating the numbers of columns for X. The length of the vector corresponds to the number of blocks.}
 
-\item{seed}{a seed number for generating random numbers for the reproductivity and should be changed in the iterative study.}
+\item{seed}{a seed number for generating random numbers for reproducibility. Should be changed in an iterative study.}
 }
 \value{
-\item{X}{Simulated X which has a list form}
+\item{X}{Simulated X, which has a list form}
 
-\item{Y}{Simulated Y which has a list form}
+\item{Y}{Simulated Y, which has a list form}
 }
 \description{
 This is a function for generating multiblock data based on the multivariable normal distribution
 }
 \details{
-The output is a list of matrics.
+The output is a list of matrices.
 }
-

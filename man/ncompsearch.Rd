@@ -3,43 +3,43 @@
 \docType{methods}
 \name{ncompsearch}
 \alias{ncompsearch}
-\alias{plot.ncompsearch}
 \alias{print.ncompsearch}
+\alias{plot.ncompsearch}
 \title{Search for Number of Components}
 \usage{
 ncompsearch(X, Y = NULL, Z = NULL, comps = 1:3, lambdaX = NULL,
   lambdaY = NULL, eta = 1, type = "lasso", inX = NULL, inY = NULL,
   muX = 0, muY = 0, nfold = 5, regpara = FALSE, maxrep = 3,
-  method = c("BIC", "CV")[1])
+  minpct = 0, maxpct = 1, criterion = c("BIC", "CV")[1], intseed = 1)
 
 \method{print}{ncompsearch}(x, ...)
 
 \method{plot}{ncompsearch}(x, ...)
 }
 \arguments{
-\item{X}{a (list of) matrix, explanatory variable(s) which is required.}
+\item{X}{a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.}
 
-\item{Y}{a (list of) matrix, objective variable(s). This is optional. If no input for Y, then the PCA method is implemented.}
+\item{Y}{a matrix or list of matrices indicating objective variable(s). This is optional. If there is no input for Y, then PCA is implemented.}
 
-\item{Z}{a vector, response variable(s). This is optional. The length is the number of subjects. If no input for Z, then the unsupervised PLS/PCA is implemented.}
+\item{Z}{a vector, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.}
 
-\item{comps}{numeric vector for the candidates of the numbers of components to be selected.}
+\item{comps}{numeric vector for the candidates for the numbers of components to be selected.}
 
-\item{lambdaX}{numeric vector of regularized parameters for X with length equal to the number of blocks. If omitted, no regularization is conducted.}
+\item{lambdaX}{numeric vector of regularized parameters for X, with a length equal to the number of blocks. If lambdaX is omitted, no regularization is conducted.}
 
-\item{lambdaY}{numeric vector of regularized parameters for Y with length equal to the number of blocks. If omitted, no regularization is conducted.}
+\item{lambdaY}{numeric vector of regularized parameters for Y, with a length equal to the number of blocks. If lambdaY is omitted, no regularization is conducted.}
 
-\item{eta}{numeric scalar, the parameter indexing the penalty family. This version has only the choice 1.}
+\item{eta}{numeric scalar indicating the parameter indexing the penalty family. This version contains only choice 1.}
 
-\item{type}{a character, the penalty family. This version has only the choice "lasso".}
+\item{type}{a character, indicating the penalty family. In this version, only one choice is available: "lasso."}
 
-\item{inX}{a (list of) numeric vector to specify the variables of X which are always in the model.}
+\item{inX}{a vector or list of numeric vectors specifying the variables in X, always included in the model}
 
-\item{inY}{a (list of) numeric vector to specify the variables of X which are always in the model.}
+\item{inY}{a vector or list of numeric vectors specifying the variables in Y, always included in the model}
 
-\item{muX}{a numeric scalar for the weight of X for the supervised. 0<=muX<=1.}
+\item{muX}{a numeric scalar for the weight of X for the supervised case. 0 <= muX <= 1.}
 
-\item{muY}{a numeric scalar for the weight of Y for the supervised. 0<=muY<=1.}
+\item{muY}{a numeric scalar for the weight of Y for the supervised case. 0 <= muY <= 1.}
 
 \item{nfold}{number of folds - default is 5.}
 
@@ -47,7 +47,13 @@ ncompsearch(X, Y = NULL, Z = NULL, comps = 1:3, lambdaX = NULL,
 
 \item{maxrep}{numeric scalar for the number of iteration.}
 
-\item{method}{a character, the evaluation method, "CV" for cross-validation based on matrix element-wise error, and "BIC" for Bayesian information criteria. The default is the BIC.}
+\item{minpct}{minimum candidate parameters defined as a percentile of automatically determined (possible) candidates.}
+
+\item{maxpct}{maximum candidate parameters defined as a percentile of automatically determined (possible) candidates.}
+
+\item{criterion}{a character, the evaluation criterion, "CV" for cross-validation, based on a matrix element-wise error, and "BIC" for Bayesian information criteria. The "BIC" is the default.}
+
+\item{intseed}{seed number for the random number in the parameter estimation algorithm.}
 
 \item{x}{an object of class "\code{ncompsearch}", usually, a result of a call to \code{ncompsearch}}
 
@@ -58,15 +64,15 @@ ncompsearch(X, Y = NULL, Z = NULL, comps = 1:3, lambdaX = NULL,
 
 \item{mincriterion}{minimum criterion value}
 
-\item{criterions}{criterion values}
+\item{criteria}{criterion values}
 
 \item{optncomp}{optimal number of components with the minimum criteria value}
 }
 \description{
-Determination for the number of components based on cross-validated method or the Bayesian information criterion (BIC)
+Determination of the number of components based on cross-validated method or Bayesian information criterion (BIC)
 }
 \details{
-This function provide an implementation of a search the optimal number of components.
+This function searches for the optimal number of components.
 }
 \examples{
 ##### data #####
@@ -78,4 +84,3 @@ ncomp1 = ncompsearch(X, Y, comps = c(1, 5, 10*(1:5)), nfold=5)
 plot(ncomp1)
 
 }
-

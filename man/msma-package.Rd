@@ -7,11 +7,13 @@
 \description{
 A Package for implementation of multiblock multivariable data analysis.
 }
-\author{
-Atsushi Kawaguchi. \email{kawa_a24@yahoo.co.jp}
+\references{
+Kawaguchi A, Yamashita F (2017). Supervised Multiblock Sparse Multivariable Analysis with Application to Multimodal Brain Imaging Genetics. Biostatistics, 18(4) 651-665.
 }
 \seealso{
 \code{\link{msma}}
 }
+\author{
+Atsushi Kawaguchi. \email{kawa_a24@yahoo.co.jp}
+}
 \keyword{documentation}
-
