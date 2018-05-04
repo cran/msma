@@ -5,7 +5,6 @@
 \alias{msma}
 \alias{msma.default}
 \alias{print.msma}
-\alias{plot.msma}
 \title{Multiblock Sparse Multivariable Analysis}
 \usage{
 msma(X, ...)
@@ -16,8 +15,6 @@ msma(X, ...)
   verbose = FALSE, intseed = 1, ...)
 
 \method{print}{msma}(x, ...)
-
-\method{plot}{msma}(x, ...)
 }
 \arguments{
 \item{X}{a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.}

@@ -13,8 +13,9 @@
 #' @references 
 #' Kawaguchi A, Yamashita F (2017). Supervised Multiblock Sparse Multivariable Analysis with Application to Multimodal Brain Imaging Genetics. Biostatistics, 18(4) 651-665. 
 #' @import mvtnorm
-#' @importFrom graphics abline matplot plot 
-#' @importFrom stats cor predict quantile rbinom rnorm runif
+#' @importFrom grDevices gray
+#' @importFrom graphics abline matplot plot barplot par text
+#' @importFrom stats cor predict quantile rbinom rnorm runif cutree dist hclust lm rect.hclust
 NULL
 
 ##########################################################################################################################################
@@ -185,8 +186,19 @@ out[[ncomp]] = out1 = msma_OneComp(X=Xd, Yd, Z, lambdaX, lambdaY, eta, type, inX
 sbX = lapply(1:Xnb, function(x){ do.call(cbind, lapply(out, function(y) y$sbX[[x]]))})
 sbY = lapply(1:Ynb, function(x){ do.call(cbind, lapply(out, function(y) y$sbY[[x]]))})
 
-wbX = lapply(1:Xnb, function(x){ do.call(cbind, lapply(out, function(y) y$wbX[[x]]))})
-wbY = lapply(1:Ynb, function(x){ do.call(cbind, lapply(out, function(y) y$wbY[[x]]))})
+wbX = lapply(1:Xnb, function(x){ 
+tmp = do.call(cbind, lapply(out, function(y) y$wbX[[x]]))
+colnames(tmp) = paste("comp", 1:ncol(tmp), sep="")
+if(is.null(colnames(X[[x]]))){rownames(tmp) = paste("X", x, 1:ncol(X[[x]]), sep=".")}else{rownames(tmp) = colnames(X[[x]])}
+tmp
+})
+
+wbY = lapply(1:Ynb, function(x){ 
+tmp = do.call(cbind, lapply(out, function(y) y$wbY[[x]]))
+colnames(tmp) = paste("comp", 1:ncol(tmp), sep="")
+if(is.null(colnames(Y[[x]]))){rownames(tmp) = paste("Y", x, 1:ncol(Y[[x]]), sep=".")}else{rownames(tmp) = colnames(Y[[x]])}
+tmp
+})
 
 ##### Number of nonzero #####
 nzwbX = do.call(rbind, lapply(wbX, function(z) apply(z, 2, function(z2) sum(z2!=0))))
@@ -233,9 +245,13 @@ bicX[ncomp] = log(tmpse/(n*sum(Xps))) + log(n*sum(Xps))/(n*sum(Xps))*(sum(nzwbX)
 ##### arrange #####
 ssX = do.call(cbind, lapply(out, function(y) y$ssX))
 wsX = do.call(cbind, lapply(out, function(y) y$wsX))
+colnames(wsX) = paste("comp", 1:ncol(wsX), sep="")
+if(is.null(names(X))){rownames(wsX) = paste("block", 1:nrow(wsX), sep="")}else{rownames(wsX) = names(X)}
 
 ssY = do.call(cbind, lapply(out, function(y) y$ssY))
 wsY = do.call(cbind, lapply(out, function(y) y$wsY))
+colnames(wsY) = paste("comp", 1:ncol(wsY), sep="")
+if(is.null(names(Y))){rownames(wsY) = paste("block", 1:nrow(wsY), sep="")}else{rownames(wsY) = names(Y)}
 
 cpevX = do.call(cbind, cpevX)
 cpevY = do.call(cbind, cpevY)
@@ -341,7 +357,6 @@ cat("\n")
 #'tmpdata = simdata(n = 50, rho = 0.8, Yps = c(10, 12, 15), Xps = 20, seed=1)
 #'X = tmpdata$X; Y = tmpdata$Y 
 #'
-#'##### One Component #####
 #'fit1 = msma(X, Y, comp=1, lambdaX=2, lambdaY=1:3)
 #'summary(fit1)
 #'
@@ -360,16 +375,6 @@ class(res) = "summary.msma"
 res
 }
 
-#' @rdname msma
-#' @method plot msma
-#' @export
-plot.msma = function(x,...){
-matplot(t(x$cpevX), type="b", xlab="Components", ylab="", ylim=c(0,1), ...)
-if(x$dmode == "PLS"){
-matplot(t(x$cpevY), type="b", lty=2, add = TRUE)
-}
-}
-
 #' @rdname summary.msma
 #' @method print summary.msma
 #' @family print
@@ -382,6 +387,101 @@ cat("\n")
 cat("Error : ")
 cat(round(x$err, 3))
 cat("\n")
+}
+
+
+#' Plot msma
+#'
+#' plot method for class "msma". 
+#'
+#' This function provides a plot of results.
+#'
+#' @name plot.msma
+#' @aliases plot.msma
+#' @rdname plot.msma
+#' @method plot msma
+#' @docType methods
+#' @export
+#'
+#' @param x an object of class "\code{msma}." Usually, a result of a call to \code{\link{msma}}
+#' @param v a character, "weight" for the weight, "score" for the score, and "cpev" for the cumulative percentage of explained variance (CPEV) .
+#' @param axes a numeric (or vector), specifying the component(s) to plot. 
+#' @param block a character, indicating which the "block" or "super" is used. 
+#' @param plottype a character, indicating the plot type. "bar" for the bar plot, "scatter" for the scatter plot.
+#' @param XY a character, indicating "X" or "Y". "XY" for the scatter plots using X and Y scores from PLS.
+#' @param col a color vector.
+#' @param signflip a logical if the sign in the block is flipped to pose the super as possitive.
+#' @param ... further arguments passed to or from other methods.
+#'
+#' @examples
+#'tmpdata = simdata(n = 50, rho = 0.8, Yps = c(10, 12, 15), Xps = 20, seed=1)
+#'X = tmpdata$X; Y = tmpdata$Y 
+#'
+#'fit1 = msma(X, Y, comp=1, lambdaX=2, lambdaY=1:3)
+#'plot(fit1)
+#'
+plot.msma = function(x, v=c("weight", "score", "cpev")[1], axes = 1, block=c("block", "super")[1], plottype=c("bar", "scatter")[1], XY=c("X", "Y", "XY")[1], col=NULL, signflip=FALSE,...) {
+### ###
+if(length(axes) > 2) stop("the length of axes should be less than 2.")
+
+if(x$comp == 1){
+axes = 1
+if(plottype == "scatter") stop("number of components should be more than 2")
+}
+
+### ###
+if(XY == "XY"){
+if(length(axes) != 1) stop("the length of axes should be 1.")
+v1="s"
+s1 = x[[paste0(v1, "s", "X")]][, axes, drop=FALSE]
+s2 = x[[paste0(v1, "s", "Y")]][, axes, drop=FALSE]
+plot(s1, s2, xlab="X score", ylab="Y score", main=paste("Component", axes[1]))
+abline(lm(s2 ~ s1), col=2)
+}else{
+### ###
+if(v == "cpev"){
+matplot(t(x$cpevX), type="b", xlab="Components", ylab="", ylim=c(0,1), ...)
+if(x$dmode == "PLS"){
+matplot(t(x$cpevY), type="b", lty=2, add = TRUE)
+}
+}else{
+### ###
+if(v == "weight"){v1="w"; t1="n"}else{v1="s"; t1="p"}
+nv1 = unlist(lapply(x[[paste0(v1, "b", XY)]], nrow))
+b0 = lapply(x[[paste0(v1, "b", XY)]], function(b00) b00[, axes,drop=FALSE])
+s1 = x[[paste0(v1, "s", XY)]][, axes,drop=FALSE]
+if(signflip){ for(i in 1:length(b0)){ for(j in 1:length(axes)){ b0[[i]][,j] = sign(s1)[i,j] * b0[[i]][,j] }} }
+
+### ###
+if(block == "block"){
+tmpvar = do.call(rbind, b0)
+width1 = rep(1, nrow(tmpvar))
+if(is.null(col) | length(col)!=length(nv1)){col1 = rep(gray(1:length(nv1)/length(nv1)), nv1)}else{col1 = rep(col, nv1)}
+}else{
+tmpvar = s1
+if(signflip) tmpvar = abs(tmpvar)
+width1 = nv1
+if(is.null(col) | length(col)!=length(nv1)){col1 = rep("gray", nrow(tmpvar))}else{col1 = col}
+}
+
+### ###
+if(plottype == "scatter"){
+if(length(axes) != 2) stop("the length of axes should be 2.")
+m1 = round(max(abs(range(tmpvar))))
+if(is.null(col)){ col1=1 }else{ col1=col}
+plot(tmpvar, xlab=paste("Component", axes[1]), ylab=paste("Component", axes[2]), xlim=c(-m1, m1), ylim=c(-m1, m1), type=t1,  main=block, col=col1,...)
+abline(h = 0, lty=2); abline(v = 0, lty=2);
+if(v == "weight"){for(i in 1:nrow(tmpvar)) text(tmpvar[i,1], tmpvar[i,2], rownames(tmpvar)[i])}
+}else if(plottype == "bar"){
+#par(mfrow=c(1, length(axes)), mar = c(4,max(nchar(rownames(tmpvar))),4,4))
+par(mar = c(4,max(nchar(rownames(tmpvar))),4,4))
+for(i in 1:length(axes)){ 
+barplot(tmpvar[,i], width1, main=paste("Component", axes[i], "(", block, ")"), horiz = TRUE, las=1, col=col1, space=0.1,...)
+}
+}
+
+}
+}
 }
 
 #' Prediction
@@ -942,6 +1042,7 @@ params$mincverr = regpara1$mincverr
 }
 
 params$search.method = search.method
+params$criterion = criterion
 class(params) = "optparasearch"
 
 params
@@ -951,9 +1052,14 @@ params
 #' @method print optparasearch
 print.optparasearch = function(x, ...)
 {
+cat("Search method: ")
+cat(paste(x$search.method))
+cat("Search criterion: ")
+cat(paste(x$criterion))
+cat("\n\n")
 cat("Optimal number of components: ")
-cat(paste(x$optncomp, "(min CVE),"))
-cat("\n")
+cat(paste(x$optncomp))
+cat("\n\n")
 cat("Optimal parameters: \n")
 cat("\n")
 print(round(x$optlambdaX, 3))
@@ -1209,3 +1315,25 @@ ginv=function(X, tol = sqrt(.Machine$double.eps))
     if(any(nz)) s$v[, nz] %*% (t(s$u[, nz])/s$d[nz]) else X,
     dimnames = dnx[2:1])
 }
+
+#' @rdname msma-internal
+hcmsma = function(object, nclust=4, graph=FALSE, hmethod="ward.D2", axes = c(1, 2), block="block", XY="X"){
+v1 = "s"
+if(block == "block"){
+tmpvar = do.call(rbind, object[[paste0(v1, "b", XY)]])[, axes,drop=FALSE]
+}else{
+tmpvar = object[[paste0(v1, "s", XY)]][, axes,drop=FALSE]
+}
+hcout = hclust(dist(tmpvar), method = hmethod)
+
+if(graph){
+plot(hcout)
+rect.hclust(hcout, k=nclust, border="red")
+}
+
+clusters=cutree(hcout, nclust)
+
+list(hcout=hcout, clusters=clusters, object=object)
+}
+
+

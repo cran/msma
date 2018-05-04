@@ -10,6 +10,7 @@
 \alias{matserr}
 \alias{strsimdata}
 \alias{ginv}
+\alias{hcmsma}
 \title{Internal functions}
 \usage{
 msma_OneComp(X, Y, Z = NULL, lambdaX = NULL, lambdaY = NULL, eta = 1,
@@ -32,6 +33,9 @@ strsimdata(n = 100, ncomp = 5, Xps = 10, Yps = FALSE, rho = 0.8,
   Z = FALSE, seed = 1, minpct = 0.25, maxpct = 0.75)
 
 ginv(X, tol = sqrt(.Machine$double.eps))
+
+hcmsma(object, nclust = 4, graph = FALSE, hmethod = "ward.D2",
+  axes = c(1, 2), block = "block", XY = "X")
 }
 \description{
 These are internal functions for \code{msma}
