@@ -9,10 +9,11 @@
 \usage{
 msma(X, ...)
 
-\method{msma}{default}(X, Y = NULL, Z = NULL, comp = 2, lambdaX = NULL,
-  lambdaY = NULL, eta = 1, type = "lasso", inX = NULL, inY = NULL,
-  muX = 0, muY = 0, defmethod = "canonical", scaling = TRUE,
-  verbose = FALSE, intseed = 1, ...)
+\method{msma}{default}(X, Y = NULL, Z = NULL, comp = 2,
+  lambdaX = NULL, lambdaY = NULL, eta = 1, type = "lasso",
+  inX = NULL, inY = NULL, muX = 0, muY = 0,
+  defmethod = "canonical", scaling = TRUE, verbose = FALSE,
+  intseed = 1, ...)
 
 \method{print}{msma}(x, ...)
 }

@@ -6,8 +6,10 @@ output:
     toc_float: true
   pdf_document:
     toc: true
-    highlight: zenburn
+    highlight: tango
   rmarkdown::html_vignette:
+fig_width: 8
+fig_height: 4
 vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteIndexEntry{msma}
@@ -17,11 +19,11 @@ vignette: >
 <!--
 %\VignetteEngine{knitr::knitr}
 %\\VignetteIndexEntry{msma}
-#source("G:/ADNI/Multimodal/program/package/Ver1/src.r"); library(mvtnorm)
-source("C:/Users/kawaguchi/ADNI/Multimodal/program/package/Ver1/src.r"); library(mvtnorm)
 -->
 
 `r Sys.Date()` @Atsushi Kawaguchi
+
+The `msma` package provides functions for a matrix decomposition method incorporating sparse and supervised modeling for a multiblock multivariable data analysis. 
 
 # Preparation
 
@@ -37,20 +39,34 @@ Load package
 library(msma)
 ```
 
+<!--
+source("G:/ADNI/Multimodal/program/package/Ver1/src.r"); library(mvtnorm)
+#source("C:/Users/kawaguchi/ADNI/Multimodal/program/package/Ver1/src.r"); library(mvtnorm)
+-->
+
 # Getting started
 Simulated multiblock data (list data) by using the function `simdata`.
-Sample size is 50. Response has three blocks and predictor has one block.
+Sample size is 50. The correlation coeficient is 0.8. 
+The numbers of columns for response and predictor can be specified by the argument `Yps` and `Xps`, respectively.
+The length of vecor represents the number of blocks.
+That is, response has three blocks with the numbers of columns being 3, 4, and 5 and predictor has one block with the number of columns being 3.
 ```{r}
 dataset0 = simdata(n = 50, rho = 0.8, Yps = c(3, 4, 5), Xps = 3, seed=1)
 X0 = dataset0$X; Y0 = dataset0$Y 
 ```
 
-The argument comp can specify the number of components.
+The argument `comp` can specify the number of components.
+The arguments `lambdaX` and `lambdaY` can specify the regularization parameters for X and Y, respectively.
 
 - One Component
 ```{r}
 fit01 = msma(X0, Y0, comp=1, lambdaX=0.05, lambdaY=1:3)
 fit01
+```
+
+The `plot` function is available. 
+In default setting, the block weights are displayed as a barplot.
+```{r}
 plot(fit01)
 ```
 
@@ -60,8 +76,11 @@ fit02 = msma(X0, Y0, comp=2, lambdaX=0.03, lambdaY=0.01*(1:3))
 fit02
 ```
 
+################################################################################################
 # Single Block
+################################################################################################
 
+Two matrics are prepared by specifying arguments `Yps` and `Xps`.
 ```{r}
 dataset1 = simdata(n = 50, rho = 0.8, Yps = 5, Xps = 5, seed=1)
 X1 = dataset1$X[[1]]; Y1 = dataset1$Y 
@@ -73,33 +92,38 @@ If input is a matrix, a principal component analysis is implemented.
 (fit111 = msma(X1, comp=5))
 ```
 
-The weight (loading) vectors
+The weight (loading) vectors can be obtained as follows.
 ```{r}
 fit111$wbX
 ```
 
-The bar plots of weight vectors 
+The bar plots of weight vectors are provided by the function `plot`.
+The component number is specified by the argument `axes`.
+The plot type is selected by the argument `plottype`.
 ```{r}
 par(mfrow=c(1,2))
 plot(fit111, axes = 1, plottype="bar")
 plot(fit111, axes = 2, plottype="bar")
 ```
 
-The score vectors for six subjects.
+The score vectors for first six subjects.
 ```{r}
 lapply(fit111$sbX, head)
 ```
 
-The scatter plots for the score vectors.
+The scatter plots for the score vectors specified by the argument `v`.
+The argument `axes` is specified by the two length vector represents which components are displayed.
 ```{r}
 plot(fit111, v="score", axes = 1:2, plottype="scatter")
 plot(fit111, v="score", axes = 2:3, plottype="scatter")
 ```
 
+When the argument `v` was specified as "cpev", the cummulative eigenvalues are plotted. 
 ```{r}
 par(mfrow=c(1,1))
 plot(fit111, v="cpev")
 ```
+
 ### Other functions in R for PCA
 There is the R function prcomp to implement PCA.
 ```{r}
@@ -109,6 +133,7 @@ biplot(fit1112)
 ```
 
 The `ggfortify` package is also available for the PCA plot.
+
 
 ### Sparse PCA
 If `lambdaX` (>0) is specified, a sparse principal component analysis is implemented.
@@ -120,24 +145,36 @@ plot(fit112, axes = 2, plottype="bar")
 ```
 
 ### Supervised Sparse PCA
-If the outcome Z is specified, a supervised sparse principal component analysis is implemented.
+The outcome Z is generated.
 ```{r}
 set.seed(1); Z = rbinom(50, 1, 0.5)
+```
 
+If the outcome Z is specified, a supervised sparse principal component analysis is implemented.
+```{r}
 (fit113 = msma(X1, Z=Z, comp=5, lambdaX=0.02))
+```
+
+```{r}
 par(mfrow=c(1,2))
 plot(fit113, axes = 1, plottype="bar")
 plot(fit113, axes = 2, plottype="bar")
 ```
 
 ## Partial Least Squres (PLS)
-If the another input is specified, a partial least squres is implemented.
+If the another input Y1 is specified, a partial least squres is implemented.
 ```{r}
 (fit121 = msma(X1, Y1, comp=2))
+```
+
+The component number is specified by the argument `axes`.
+When the argument `XY` was specified as "XY", the scatter plots for Y score against X score are plotted. 
+```{r}
 par(mfrow=c(1,2))
 plot(fit121, axes = 1, XY="XY")
 plot(fit121, axes = 2, XY="XY")
 ```
+
 
 ### Sparse PLS
 If `lambdaX` and `lambdaY` are specified, a sparse PLS is implemented.
@@ -158,7 +195,9 @@ plot(fit123, axes = 2, XY="XY")
 ```
 
 
+################################################################################################
 # Multi Block
+################################################################################################
 Multiblock data is a list of data matrix. 
 ```{r}
 dataset2 = simdata(n = 50, rho = 0.8, Yps = c(2, 3), Xps = c(3, 4), seed=1)
@@ -182,11 +221,12 @@ list of data matrix structure.
 lapply(X2, dim)
 ```
 
+The function `msma` is applied to this list X2 as follows.
 ```{r}
 (fit211 = msma(X2, comp=1))
 ```
 
-The bar plots for the block and super weights (loadings). 
+The bar plots for the block and super weights (loadings) specified the argument `block`. 
 ```{r}
 par(mfrow=c(1,2))
 plot(fit211, axes = 1, plottype="bar", block="block")
@@ -199,7 +239,7 @@ If `lambdaX` with the length of 2 (same as the length of blocks) are specified, 
 (fit212 = msma(X2, comp=1, lambdaX=c(0.5, 0.5)))
 ```
 
-
+The bar plots for the block and super weights (loadings). 
 ```{r}
 par(mfrow=c(1,2))
 plot(fit212, axes = 1, plottype="bar", block="block")
@@ -207,6 +247,7 @@ plot(fit212, axes = 1, plottype="bar", block="super")
 ```
 
 ### Supervised Sparse PCA
+If the outcome Z is specified, a supervised analysis is implemented.
 ```{r}
 (fit213 = msma(X2, Z=Z, comp=1, lambdaX=c(0.5, 0.5)))
 par(mfrow=c(1,2))
@@ -215,23 +256,38 @@ plot(fit213, axes = 1, plottype="bar", block="super")
 ```
 
 ## PLS
-If the another input is specified, the partial least squared is implemented.
+If the another input (list) Y2 is specified, the partial least squared is implemented.
 ```{r}
 (fit221 = msma(X2, Y2, comp=1))
+```
+
+```{r}
 par(mfrow=c(1,2))
 plot(fit221, axes = 1, plottype="bar", block="block", XY="X")
 plot(fit221, axes = 1, plottype="bar", block="super", XY="X")
+```
+
+```{r}
+par(mfrow=c(1,2))
 plot(fit221, axes = 1, plottype="bar", block="block", XY="Y")
 plot(fit221, axes = 1, plottype="bar", block="super", XY="Y")
 ```
 
 ### Sparse PLS
-The regularized parameters
+The regularized parameters `lambdaX` and `lambdaY` are specified vectors with same length with the length of lists X2 and Y2, respectively.
 ```{r}
 (fit222 = msma(X2, Y2, comp=1, lambdaX=c(0.5, 0.5), lambdaY=c(0.5, 0.5)))
+```
+
+```{r}
 par(mfrow=c(1,2))
 plot(fit222, axes = 1, plottype="bar", block="block", XY="X")
 plot(fit222, axes = 1, plottype="bar", block="super", XY="X")
+```
+
+
+```{r}
+par(mfrow=c(1,2))
 plot(fit222, axes = 1, plottype="bar", block="block", XY="Y")
 plot(fit222, axes = 1, plottype="bar", block="super", XY="Y")
 ```
@@ -239,26 +295,85 @@ plot(fit222, axes = 1, plottype="bar", block="super", XY="Y")
 ### Supervised Sparse PLS
 ```{r}
 (fit223 = msma(X2, Y2, Z, comp=1, lambdaX=c(0.5, 0.5), lambdaY=c(0.5, 0.5)))
+```
+
+```{r}
 par(mfrow=c(1,2))
 plot(fit223, axes = 1, plottype="bar", block="block", XY="X")
 plot(fit223, axes = 1, plottype="bar", block="super", XY="X")
+```
+
+```{r}
+par(mfrow=c(1,2))
 plot(fit223, axes = 1, plottype="bar", block="block", XY="Y")
 plot(fit223, axes = 1, plottype="bar", block="super", XY="Y")
 ```
 
+################################################################################################
 # Parameter Selection
+################################################################################################
 
-## PCA
+The number of components and regularized parameters can be selected by the function `optparasearch`.
+The following options are available.
+
 ```{r}
 criteria = c("BIC", "CV")
 search.methods = c("regparaonly", "regpara1st", "ncomp1st", "simultaneous")
-c1=criteria[1]; sm1=search.methods[1]
-(opt1 = optparasearch(X1, search.method = sm1, criterion=c1))
-(fit31 = msma(X1, comp=opt1$optncomp, lambdaX=opt1$optlambdaX))
 ```
 
-## PLS
+## PCA
+
+-  The `regparaonly` method searches for the regularized parameters with a fixed number of components.
+
 ```{r}
-(opt2 = optparasearch(X2, Y2, search.method = sm1, criterion=c1))
-(fit32 = msma(X2, Y2, comp=opt2$optncomp, lambdaX=opt2$optlambdaX, lambdaY=opt2$optlambdaY))
+(opt11 = optparasearch(X1, search.method = "regparaonly", criterion="BIC"))
+(fit311 = msma(X1, comp=opt11$optncomp, lambdaX=opt11$optlambdaX))
 ```
+
+-  The `regpara1st` identifies the regularized parameters by fixing the number of components, then searching for the number of components with the selected regularized parameters. 
+
+```{r}
+(opt12 = optparasearch(X1, search.method = "regpara1st", criterion="BIC"))
+(fit312 = msma(X1, comp=opt12$optncomp, lambdaX=opt12$optlambdaX))
+```
+
+-  The `ncomp1st` method identifies the number of components with a regularized parameter of 0, then searches for the regularized parameters with the selected number of components. 
+
+```{r}
+(opt13 = optparasearch(X1, search.method = "ncomp1st", criterion="BIC"))
+(fit313 = msma(X1, comp=opt13$optncomp, lambdaX=opt13$optlambdaX))
+```
+
+-  The `simultaneous` method identifies the number of components by searching the regularized parameters in each component. 
+
+```{r}
+(opt14 = optparasearch(X1, search.method = "simultaneous", criterion="BIC"))
+(fit314 = msma(X1, comp=opt14$optncomp, lambdaX=opt14$optlambdaX))
+```
+
+
+The argument maxpct4ncomp=0.5 means that 0.5$\lambda$ is used as the regularized
+parameter when the number of components is searched and where $\lambda$ is the maximum of
+the regularized parameters among the possible candidates.
+
+```{r}
+(opt132 = optparasearch(X1, search.method = "ncomp1st", criterion="BIC", maxpct4ncomp=0.5))
+(fit3132 = msma(X1, comp=opt132$optncomp, lambdaX=opt132$optlambdaX))
+```
+
+
+## PLS
+For PLS, two parameters $\lambda_X$ and $\lambda_Y$ are used in arguments `lambdaX` and `lambdaY` to control sparseness for data X and Y, respectively.
+
+
+```{r}
+(opt21 = optparasearch(X2, Y2, search.method = "regparaonly", criterion="BIC"))
+(fit321 = msma(X2, Y2, comp=opt21$optncomp, lambdaX=opt21$optlambdaX, lambdaY=opt21$optlambdaY))
+```
+
+
+
+
+
+
+

@@ -13,9 +13,9 @@
 \alias{hcmsma}
 \title{Internal functions}
 \usage{
-msma_OneComp(X, Y, Z = NULL, lambdaX = NULL, lambdaY = NULL, eta = 1,
-  type = "lasso", inX = NULL, inY = NULL, muX = 0, muY = 0,
-  dmode = "PLS", verbose = FALSE, intseed = 1)
+msma_OneComp(X, Y, Z = NULL, lambdaX = NULL, lambdaY = NULL,
+  eta = 1, type = "lasso", inX = NULL, inY = NULL, muX = 0,
+  muY = 0, dmode = "PLS", verbose = FALSE, intseed = 1)
 
 normvec(a)
 

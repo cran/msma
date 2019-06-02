@@ -6,11 +6,12 @@
 \alias{print.optparasearch}
 \title{Parameters Search}
 \usage{
-optparasearch(X, Y = NULL, Z = NULL, search.method = c("simultaneous",
-  "regpara1st", "ncomp1st", "regparaonly")[1], eta = 1, type = "lasso",
-  inX = NULL, inY = NULL, muX = 0, muY = 0, comp = 1, nfold = 5,
-  maxrep = 3, minpct = 0, maxpct = 1, criterion = c("BIC", "CV")[1],
-  intseed = 1)
+optparasearch(X, Y = NULL, Z = NULL,
+  search.method = c("simultaneous", "regpara1st", "ncomp1st",
+  "regparaonly")[1], eta = 1, type = "lasso", inX = NULL,
+  inY = NULL, muX = 0, muY = 0, comp = 1, nfold = 5,
+  maxrep = 3, minpct = 0, maxpct = 1, maxpct4ncomp = NULL,
+  criterion = c("BIC", "CV")[1], intseed = 1)
 
 \method{print}{optparasearch}(x, ...)
 }
@@ -44,6 +45,8 @@ optparasearch(X, Y = NULL, Z = NULL, search.method = c("simultaneous",
 \item{minpct}{minimum candidate parameters defined as a percentile of automatically determined (possible) candidates.}
 
 \item{maxpct}{maximum candidate parameters defined as a percentile of automatically determined (possible) candidates.}
+
+\item{maxpct4ncomp}{maximum candidate parameters defined as a percentile of automatically determined (possible) candidates.}
 
 \item{criterion}{a character, the evaluation criterion, "CV" for cross-validation, based on a matrix element-wise error, and "BIC" for Bayesian information criteria. The "BIC" is the default.}
 

@@ -30,3 +30,4 @@ fit1 = msma(X, Y, comp=1, lambdaX=2, lambdaY=1:3)
 summary(fit1)
 
 }
+\concept{print}

@@ -11,6 +11,8 @@ X0 = dataset0$X; Y0 = dataset0$Y
 ## ------------------------------------------------------------------------
 fit01 = msma(X0, Y0, comp=1, lambdaX=0.05, lambdaY=1:3)
 fit01
+
+## ------------------------------------------------------------------------
 plot(fit01)
 
 ## ------------------------------------------------------------------------
@@ -57,13 +59,18 @@ plot(fit112, axes = 2, plottype="bar")
 ## ------------------------------------------------------------------------
 set.seed(1); Z = rbinom(50, 1, 0.5)
 
+## ------------------------------------------------------------------------
 (fit113 = msma(X1, Z=Z, comp=5, lambdaX=0.02))
+
+## ------------------------------------------------------------------------
 par(mfrow=c(1,2))
 plot(fit113, axes = 1, plottype="bar")
 plot(fit113, axes = 2, plottype="bar")
 
 ## ------------------------------------------------------------------------
 (fit121 = msma(X1, Y1, comp=2))
+
+## ------------------------------------------------------------------------
 par(mfrow=c(1,2))
 plot(fit121, axes = 1, XY="XY")
 plot(fit121, axes = 2, XY="XY")
@@ -117,36 +124,68 @@ plot(fit213, axes = 1, plottype="bar", block="super")
 
 ## ------------------------------------------------------------------------
 (fit221 = msma(X2, Y2, comp=1))
+
+## ------------------------------------------------------------------------
 par(mfrow=c(1,2))
 plot(fit221, axes = 1, plottype="bar", block="block", XY="X")
 plot(fit221, axes = 1, plottype="bar", block="super", XY="X")
+
+## ------------------------------------------------------------------------
+par(mfrow=c(1,2))
 plot(fit221, axes = 1, plottype="bar", block="block", XY="Y")
 plot(fit221, axes = 1, plottype="bar", block="super", XY="Y")
 
 ## ------------------------------------------------------------------------
 (fit222 = msma(X2, Y2, comp=1, lambdaX=c(0.5, 0.5), lambdaY=c(0.5, 0.5)))
+
+## ------------------------------------------------------------------------
 par(mfrow=c(1,2))
 plot(fit222, axes = 1, plottype="bar", block="block", XY="X")
 plot(fit222, axes = 1, plottype="bar", block="super", XY="X")
+
+## ------------------------------------------------------------------------
+par(mfrow=c(1,2))
 plot(fit222, axes = 1, plottype="bar", block="block", XY="Y")
 plot(fit222, axes = 1, plottype="bar", block="super", XY="Y")
 
 ## ------------------------------------------------------------------------
 (fit223 = msma(X2, Y2, Z, comp=1, lambdaX=c(0.5, 0.5), lambdaY=c(0.5, 0.5)))
+
+## ------------------------------------------------------------------------
 par(mfrow=c(1,2))
 plot(fit223, axes = 1, plottype="bar", block="block", XY="X")
 plot(fit223, axes = 1, plottype="bar", block="super", XY="X")
+
+## ------------------------------------------------------------------------
+par(mfrow=c(1,2))
 plot(fit223, axes = 1, plottype="bar", block="block", XY="Y")
 plot(fit223, axes = 1, plottype="bar", block="super", XY="Y")
 
 ## ------------------------------------------------------------------------
 criteria = c("BIC", "CV")
 search.methods = c("regparaonly", "regpara1st", "ncomp1st", "simultaneous")
-c1=criteria[1]; sm1=search.methods[1]
-(opt1 = optparasearch(X1, search.method = sm1, criterion=c1))
-(fit31 = msma(X1, comp=opt1$optncomp, lambdaX=opt1$optlambdaX))
 
 ## ------------------------------------------------------------------------
-(opt2 = optparasearch(X2, Y2, search.method = sm1, criterion=c1))
-(fit32 = msma(X2, Y2, comp=opt2$optncomp, lambdaX=opt2$optlambdaX, lambdaY=opt2$optlambdaY))
+(opt11 = optparasearch(X1, search.method = "regparaonly", criterion="BIC"))
+(fit311 = msma(X1, comp=opt11$optncomp, lambdaX=opt11$optlambdaX))
+
+## ------------------------------------------------------------------------
+(opt12 = optparasearch(X1, search.method = "regpara1st", criterion="BIC"))
+(fit312 = msma(X1, comp=opt12$optncomp, lambdaX=opt12$optlambdaX))
+
+## ------------------------------------------------------------------------
+(opt13 = optparasearch(X1, search.method = "ncomp1st", criterion="BIC"))
+(fit313 = msma(X1, comp=opt13$optncomp, lambdaX=opt13$optlambdaX))
+
+## ------------------------------------------------------------------------
+(opt14 = optparasearch(X1, search.method = "simultaneous", criterion="BIC"))
+(fit314 = msma(X1, comp=opt14$optncomp, lambdaX=opt14$optlambdaX))
+
+## ------------------------------------------------------------------------
+(opt132 = optparasearch(X1, search.method = "ncomp1st", criterion="BIC", maxpct4ncomp=0.5))
+(fit3132 = msma(X1, comp=opt132$optncomp, lambdaX=opt132$optlambdaX))
+
+## ------------------------------------------------------------------------
+(opt21 = optparasearch(X2, Y2, search.method = "regparaonly", criterion="BIC"))
+(fit321 = msma(X2, Y2, comp=opt21$optncomp, lambdaX=opt21$optlambdaX, lambdaY=opt21$optlambdaY))
 

@@ -420,7 +420,7 @@ cat("\n")
 #'fit1 = msma(X, Y, comp=1, lambdaX=2, lambdaY=1:3)
 #'plot(fit1)
 #'
-plot.msma = function(x, v=c("weight", "score", "cpev")[1], axes = 1, block=c("block", "super")[1], plottype=c("bar", "scatter")[1], XY=c("X", "Y", "XY")[1], col=NULL, signflip=FALSE,...) {
+plot.msma = function(x, v=c("weight", "score", "cpev")[1], axes = 1, block=c("block", "super")[1], plottype=c("bar", "scatter")[1], XY=c("X", "Y", "XY")[1], col=NULL, signflip=FALSE, ...) {
 ### ###
 if(length(axes) > 2) stop("the length of axes should be less than 2.")
 
@@ -474,9 +474,10 @@ abline(h = 0, lty=2); abline(v = 0, lty=2);
 if(v == "weight"){for(i in 1:nrow(tmpvar)) text(tmpvar[i,1], tmpvar[i,2], rownames(tmpvar)[i])}
 }else if(plottype == "bar"){
 #par(mfrow=c(1, length(axes)), mar = c(4,max(nchar(rownames(tmpvar))),4,4))
-par(mar = c(4,max(nchar(rownames(tmpvar))),4,4))
+mar1 = ifelse(is.null(rownames(tmpvar)), 4, max(nchar(rownames(tmpvar))))
+par(mar = c(4,mar1,4,4))
 for(i in 1:length(axes)){ 
-barplot(tmpvar[,i], width1, main=paste("Component", axes[i], "(", block, ")"), horiz = TRUE, las=1, col=col1, space=0.1,...)
+barplot(tmpvar[,i], width1, main=paste("Component", axes[i], "(", block, ")"), las=1, col=col1, space=0.1,...)
 }
 }
 
@@ -985,6 +986,7 @@ cat("\n")
 #' @param maxrep numeric scalar for the number of iteration.
 #' @param minpct minimum candidate parameters defined as a percentile of automatically determined (possible) candidates.
 #' @param maxpct maximum candidate parameters defined as a percentile of automatically determined (possible) candidates.
+#' @param maxpct4ncomp maximum candidate parameters defined as a percentile of automatically determined (possible) candidates.
 #' @param criterion a character, the evaluation criterion, "CV" for cross-validation, based on a matrix element-wise error, and "BIC" for Bayesian information criteria. The "BIC" is the default.
 #' @param x an object of class "\code{optparasearch}", usually, a result of a call to \code{optparasearch}
 #' @param intseed seed number for the random number in the parameter estimation algorithm.
@@ -1013,7 +1015,7 @@ cat("\n")
 #' opt2 = optparasearch(X, Y, comp=3, nfold=5, maxrep=2, minpct=0.5)
 #' opt2
 #'
-optparasearch = function(X, Y=NULL, Z=NULL, search.method = c("simultaneous", "regpara1st", "ncomp1st", "regparaonly")[1], eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, comp=1, nfold=5, maxrep=3, minpct=0, maxpct=1, criterion=c("BIC","CV")[1], intseed=1){
+optparasearch = function(X, Y=NULL, Z=NULL, search.method = c("simultaneous", "regpara1st", "ncomp1st", "regparaonly")[1], eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, comp=1, nfold=5, maxrep=3, minpct=0, maxpct=1, maxpct4ncomp=NULL, criterion=c("BIC","CV")[1], intseed=1){
 
 comps1 = 1:comp
 
@@ -1024,7 +1026,11 @@ params = ncompsearch(X=X, Y=Y, Z=Z, comps = comps1, lambdaX=regpara1$optlambdaX,
 ##### both (ncomp first) #####
 }else if(search.method == "ncomp1st"){
 #params = ncompsearch(X=X, Y=Y, Z=Z, comps = min(c(min(unlist(lapply(X,dim))), min(unlist(lapply(Y,dim))))), muX = muX, muY = muY, nfold=nfold1, regpara=FALSE, criterion=criterion)
+if(is.null(maxpct4ncomp)){
 params = ncompsearch(X=X, Y=Y, Z=Z, comps = comps1, muX = muX, muY = muY, nfold=nfold, regpara=FALSE, criterion=criterion)
+}else{
+params = ncompsearch(X=X, Y=Y, Z=Z, comps = comps1, muX = muX, muY = muY, nfold=nfold, maxpct=maxpct4ncomp, regpara=TRUE, criterion=criterion)
+}
 regpara1 = regparasearch(X=X, Y=Y, Z=Z, comp=params$optncomp, muX = muX, muY = muY, nfold=nfold, minpct=minpct, maxpct=maxpct, maxrep=maxrep, criterion=criterion)
 params$optlambdaX = regpara1$optlambdaX
 params$optlambdaY = regpara1$optlambdaY

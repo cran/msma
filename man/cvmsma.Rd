@@ -6,8 +6,8 @@
 \title{Cross-Validation}
 \usage{
 cvmsma(X, Y = NULL, Z = NULL, comp = 1, lambdaX, lambdaY = NULL,
-  eta = 1, type = "lasso", inX = NULL, inY = NULL, muX = 0, muY = 0,
-  nfold = 5, seed = 1, intseed = 1)
+  eta = 1, type = "lasso", inX = NULL, inY = NULL, muX = 0,
+  muY = 0, nfold = 5, seed = 1, intseed = 1)
 }
 \arguments{
 \item{X}{a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.}

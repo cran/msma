@@ -7,9 +7,9 @@
 \title{Regularized Parameters Search}
 \usage{
 regparasearch(X, Y = NULL, Z = NULL, eta = 1, type = "lasso",
-  inX = NULL, inY = NULL, muX = 0, muY = 0, comp = 1, nfold = 5,
-  maxrep = 3, minpct = 0, maxpct = 1, criterion = c("BIC", "CV")[1],
-  intseed = 1)
+  inX = NULL, inY = NULL, muX = 0, muY = 0, comp = 1,
+  nfold = 5, maxrep = 3, minpct = 0, maxpct = 1,
+  criterion = c("BIC", "CV")[1], intseed = 1)
 
 \method{print}{regparasearch}(x, ...)
 }
