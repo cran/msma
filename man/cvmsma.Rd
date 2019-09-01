@@ -6,48 +6,55 @@
 \title{Cross-Validation}
 \usage{
 cvmsma(X, Y = NULL, Z = NULL, comp = 1, lambdaX, lambdaY = NULL,
-  eta = 1, type = "lasso", inX = NULL, inY = NULL, muX = 0,
-  muY = 0, nfold = 5, seed = 1, intseed = 1)
+  lambdaXsup = NULL, lambdaYsup = NULL, eta = 1, type = "lasso",
+  inX = NULL, inY = NULL, inXsup = NULL, inYsup = NULL, muX = 0,
+  muY = 0, nfold = 5, seed = 1)
 }
 \arguments{
-\item{X}{a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.}
+\item{X}{a (list of) matrix, explanatory variable(s).}
 
-\item{Y}{a matrix or list of matrices indicating objective variable(s). This is optional. If there is no input for Y, then PCA is implemented.}
+\item{Y}{a (list of) matrix, objective variable(s).}
 
-\item{Z}{a vector, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.}
+\item{Z}{a (list of) matrix, response variable(s).}
 
-\item{comp}{numeric scalar for the number of components to be considered.}
+\item{comp}{numeric scalar for the maximum number of componets to be considered.}
 
-\item{lambdaX}{numeric vector of regularized parameters for X, with a length equal to the number of blocks. If lambdaX is omitted, no regularization is conducted.}
+\item{lambdaX}{numeric vector of regularized parameters for X with length equal to the number of blocks. If omitted, no regularization is conducted.}
 
-\item{lambdaY}{numeric vector of regularized parameters for Y, with a length equal to the number of blocks. If lambdaY is omitted, no regularization is conducted.}
+\item{lambdaY}{numeric vector of regularized parameters for Y with length equal to the number of blocks. If omitted, no regularization is conducted.}
 
-\item{eta}{numeric scalar indicating the parameter indexing the penalty family. This version contains only choice 1.}
+\item{lambdaXsup}{numeric vector of regularized parameters for the super weight of X with length equal to the number of blocks. If omitted, no regularization is conducted.}
 
-\item{type}{a character, indicating the penalty family. In this version, only one choice is available: "lasso."}
+\item{lambdaYsup}{numeric vector of regularized parameters for the super weight of Y with length equal to the number of blocks. If omitted, no regularization is conducted.}
 
-\item{inX}{a vector or list of numeric vectors specifying the variables in X, always included in the model}
+\item{eta}{numeric scalar the parameter indexing the penalty family.}
 
-\item{inY}{a vector or list of numeric vectors specifying the variables in Y, always included in the model}
+\item{type}{a character.}
 
-\item{muX}{a numeric scalar for the weight of X for the supervised case. 0 <= muX <= 1.}
+\item{inX}{a (list of) numeric vector to specify the variables of X which are always in the model.}
 
-\item{muY}{a numeric scalar for the weight of Y for the supervised case. 0 <= muY <= 1.}
+\item{inY}{a (list of) numeric vector to specify the variables of X which are always in the model.}
+
+\item{inXsup}{a (list of) numeric vector to specify the blocks of X which are always in the model.}
+
+\item{inYsup}{a (list of) numeric vector to specify the blocks of Y which are always in the model.}
+
+\item{muX}{a numeric scalar for the weight of X for the supervised.}
+
+\item{muY}{a numeric scalar for the weight of Y for the supervised.}
 
 \item{nfold}{number of folds - default is 5.}
 
-\item{seed}{seed number for the random number in the cross-validation.}
-
-\item{intseed}{seed number for the random number in the parameter estimation algorithm.}
+\item{seed}{number of seed for the random number.}
 }
 \value{
-\item{err}{The mean cross-validated errors which has three elements consisting of the mean of predict errors for X and Y, the errors for X and for Y in the PLS and only the errors for X in the PCA.}
+\item{err}{The mean cross-validated errors which has three elements consisting of the mean of errors for X and Y, the errors for X and for Y.}
 }
 \description{
-Cross-validated method to evaluate the fit of msma.
+cross-validated method to evaluate the fit of "msma".
 }
 \details{
-k-fold cross-validation for \code{msma}. The evaluation is based on the matrix element-wise errors.
+k-fold cross-validation for \code{msma}
 }
 \examples{
 ##### data #####

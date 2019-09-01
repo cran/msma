@@ -8,28 +8,24 @@
 \method{predict}{msma}(object, newX, newY = NULL, ...)
 }
 \arguments{
-\item{object}{an object of class "\code{msma}." Usually, a result of a call to \code{msma}}
+\item{object}{an object of class "\code{msma}", usually, a result of a call to \code{\link{msma}}}
 
-\item{newX}{a matrix in which to look for the variables used to predict X. This is required.}
+\item{newX}{a matrix in which to look for variables with which to predict X.}
 
-\item{newY}{a matrix in which to look for the variables used to predict Y.}
+\item{newY}{a matrix in which to look for variables with which to predict Y.}
 
 \item{...}{further arguments passed to or from other methods.}
 }
 \value{
 \item{X}{predicted X}
 
-\item{sbX}{block score for X}
-
 \item{Y}{predicted Y}
-
-\item{sbY}{block score for Y}
 }
 \description{
 predict method for class "msma".
 }
 \details{
-This function produces a prediction from new data based on \code{\link{msma}} fit. It is mainly used in cross-validation
+This function provide the p value for the hypothesis test of coefficient in the model of weighted least squares method.
 }
 \examples{
 ##### data #####

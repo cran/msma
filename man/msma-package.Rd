@@ -3,9 +3,9 @@
 \docType{package}
 \name{msma-package}
 \alias{msma-package}
-\title{Multiblock Sparse Multivariable Analysis Package}
+\title{Multiblock Sparse Matrix Analysis Package}
 \description{
-A Package for implementation of multiblock multivariable data analysis.
+A Package for Implementation of the method
 }
 \references{
 Kawaguchi A, Yamashita F (2017). Supervised Multiblock Sparse Multivariable Analysis with Application to Multimodal Brain Imaging Genetics. Biostatistics, 18(4) 651-665.

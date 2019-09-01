@@ -7,46 +7,53 @@
 \title{Regularized Parameters Search}
 \usage{
 regparasearch(X, Y = NULL, Z = NULL, eta = 1, type = "lasso",
-  inX = NULL, inY = NULL, muX = 0, muY = 0, comp = 1,
-  nfold = 5, maxrep = 3, minpct = 0, maxpct = 1,
-  criterion = c("BIC", "CV")[1], intseed = 1)
+  inX = NULL, inY = NULL, inXsup = NULL, inYsup = NULL, muX = 0,
+  muY = 0, comp = 1, nfold = 5, maxrep = 3, minpct = 0,
+  maxpct = 1, method = c("CV", "BIC")[1], whichselect = NULL,
+  homo = NULL)
 
 \method{print}{regparasearch}(x, ...)
 }
 \arguments{
-\item{X}{a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.}
+\item{X}{a (list of) matrix, explanatory variable(s).}
 
-\item{Y}{a matrix or list of matrices indicating objective variable(s). This is optional. If there is no input for Y, then PCA is implemented.}
+\item{Y}{a (list of) matrix, objective variable(s).}
 
-\item{Z}{a vector, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.}
+\item{Z}{a (list of) matrix, response variable(s).}
 
-\item{eta}{numeric scalar indicating the parameter indexing the penalty family. This version contains only choice 1.}
+\item{eta}{numeric scalar the parameter indexing the penalty family.}
 
-\item{type}{a character, indicating the penalty family. In this version, only one choice is available: "lasso."}
+\item{type}{a character.}
 
-\item{inX}{a vector or list of numeric vectors specifying the variables in X, always included in the model}
+\item{inX}{a (list of) numeric vector to specify the variables of X which are always in the model.}
 
-\item{inY}{a vector or list of numeric vectors specifying the variables in Y, always included in the model}
+\item{inY}{a (list of) numeric vector to specify the variables of X which are always in the model.}
 
-\item{muX}{a numeric scalar for the weight of X for the supervised case. 0 <= muX <= 1.}
+\item{inXsup}{a (list of) numeric vector to specify the blocks of X which are always in the model.}
 
-\item{muY}{a numeric scalar for the weight of Y for the supervised case. 0 <= muY <= 1.}
+\item{inYsup}{a (list of) numeric vector to specify the blocks of Y which are always in the model.}
 
-\item{comp}{numeric scalar for the number of components to be considered.}
+\item{muX}{a numeric scalar for the weight of X for the supervised.}
 
-\item{nfold}{number of folds. Default is 5.}
+\item{muY}{a numeric scalar for the weight of Y for the supervised.}
 
-\item{maxrep}{numeric scalar for the number of iterations.}
+\item{comp}{numeric scalar for the maximum number of componets to be considered.}
 
-\item{minpct}{minimum candidate parameters defined as a percentile of automatically determined (possible) candidates.}
+\item{nfold}{number of folds - default is 5.}
 
-\item{maxpct}{maximum candidate parameters defined as a percentile of automatically determined (possible) candidates.}
+\item{maxrep}{numeric scalar for the number of iteration.}
 
-\item{criterion}{a character, the evaluation criterion, "CV" for cross-validation, based on a matrix element-wise error, and "BIC" for Bayesian information criteria. The "BIC" is the default.}
+\item{minpct}{percent of minimum candidate parameters.}
 
-\item{intseed}{seed number for the random number in the parameter estimation algorithm.}
+\item{maxpct}{percent of maximum candidate parameters.}
 
-\item{x}{an object of class "\code{regparasearch}", usually, a result of a call to \code{regparasearch}}
+\item{method}{a character, the evaluation criterion, "CV" for cross-validation, based on a matrix element-wise error, and "BIC" for Bayesian information criteria. The "BIC" is the default.}
+
+\item{whichselect}{which blocks selected.}
+
+\item{homo}{same parameters.}
+
+\item{x}{an object of class "\code{regparasearch}", usually, a result of a call to \code{\link{regparasearch}}}
 
 \item{...}{further arguments passed to or from other methods.}
 }
@@ -55,9 +62,9 @@ regparasearch(X, Y = NULL, Z = NULL, eta = 1, type = "lasso",
 
 \item{optlambdaY}{Optimal parameters for Y}
 
-\item{mincriterion}{Minimum criterion value}
+\item{mincriterion}{Minimum of criterion values}
 
-\item{criteria}{All resulting criterion values in the process}
+\item{criterions}{Resulting criterion value}
 
 \item{pararange}{Range of candidates parameters}
 }
@@ -65,22 +72,19 @@ regparasearch(X, Y = NULL, Z = NULL, eta = 1, type = "lasso",
 Regularized parameters search method for "msma".
 }
 \details{
-This is a function for identifying the regularized parameters of sparseness lambdaX and lambdaY for \code{msma}. The initial range of candidates is computed based on fit, with regularized parameter values of 0. A binary search is conducted for dividing the parameter range into two regions. The representative value for the region is a median value, and the optimal region is selected using the minimum criteria obtained from the fit with that median value. The CV error or BIC can be used as criteria. The selected region is also divided into two region and the same process is iterated by maxrep times. Thus, the final median value in the selected region is set to be the optimal regularized parameter. The search is conducted with combinations of parameters for X and Y. The range of candidates for regularized parameters can be restricted, with a percentile of the limit (minimum or maximum) for the range.
+Regularized parameters search for \code{msma}
 }
 \examples{
 ##### data #####
-tmpdata = simdata(n = 50, rho = 0.8, Yps = c(10, 12, 15), Xps = 20, seed=1)
+tmpdata = simdata(n = 50, rho = 0.8, Yps = c(10, 12, 15), Xps = c(20, 15), seed=1)
 X = tmpdata$X; Y = tmpdata$Y 
 
 ##### Regularized parameters search #####
-opt1 = regparasearch(X, Y, comp=1, nfold=5, maxrep=2)
+opt1 = regparasearch(X, Y, comp=1, method="BIC", maxrep=2, whichselect=c("X", "Y", "Xsup", "Ysup"))
 opt1
-fit4 = msma(X, Y, comp=1, lambdaX=opt1$optlambdaX, lambdaY=opt1$optlambdaY)
+fit4 = msma(X, Y, comp=1, lambdaX=opt1$optlambdaX, lambdaY=opt1$optlambdaY, 
+lambdaXsup=opt1$optlambdaXsup, lambdaYsup=opt1$optlambdaYsup)
 fit4
 summary(fit4)
-
-##### Restrict search range #####
-opt2 = regparasearch(X, Y, comp=1, nfold=5, maxrep=2, minpct=0.5)
-opt2
 
 }
