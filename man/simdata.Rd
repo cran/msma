@@ -5,8 +5,7 @@
 \alias{simdata}
 \title{Simulate Data sets}
 \usage{
-simdata(n = 100, rho = 0.8, Yps = c(100, 120, 150), Xps = 500,
-  seed = 1)
+simdata(n = 100, rho = 0.8, Yps = c(100, 120, 150), Xps = 500, seed = 1)
 }
 \arguments{
 \item{n}{a numeric scalar, sample size.}

@@ -5,10 +5,27 @@
 \alias{cvmsma}
 \title{Cross-Validation}
 \usage{
-cvmsma(X, Y = NULL, Z = NULL, comp = 1, lambdaX, lambdaY = NULL,
-  lambdaXsup = NULL, lambdaYsup = NULL, eta = 1, type = "lasso",
-  inX = NULL, inY = NULL, inXsup = NULL, inYsup = NULL, muX = 0,
-  muY = 0, nfold = 5, seed = 1)
+cvmsma(
+  X,
+  Y = NULL,
+  Z = NULL,
+  comp = 1,
+  lambdaX,
+  lambdaY = NULL,
+  lambdaXsup = NULL,
+  lambdaYsup = NULL,
+  eta = 1,
+  type = "lasso",
+  inX = NULL,
+  inY = NULL,
+  inXsup = NULL,
+  inYsup = NULL,
+  muX = 0,
+  muY = 0,
+  nfold = 5,
+  seed = 1,
+  intseed = 1
+)
 }
 \arguments{
 \item{X}{a (list of) matrix, explanatory variable(s).}
@@ -46,6 +63,8 @@ cvmsma(X, Y = NULL, Z = NULL, comp = 1, lambdaX, lambdaY = NULL,
 \item{nfold}{number of folds - default is 5.}
 
 \item{seed}{number of seed for the random number.}
+
+\item{intseed}{seed number for the random number in the parameter estimation algorithm.}
 }
 \value{
 \item{err}{The mean cross-validated errors which has three elements consisting of the mean of errors for X and Y, the errors for X and for Y.}

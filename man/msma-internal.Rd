@@ -8,12 +8,30 @@
 \alias{searchseq}
 \alias{project}
 \alias{matserr}
+\alias{ginv}
+\alias{hcmsma}
 \title{Internal functions}
 \usage{
-msma_OneComp(X, Y, Z = NULL, lambdaX = NULL, lambdaY = NULL,
-  lambdaXsup = NULL, lambdaYsup = NULL, eta = 1, type = "lasso",
-  inX = NULL, inY = NULL, inXsup = NULL, inYsup = NULL, muX = 0,
-  muY = 0, dmode = "PLS", verbose = FALSE)
+msma_OneComp(
+  X,
+  Y,
+  Z = NULL,
+  lambdaX = NULL,
+  lambdaY = NULL,
+  lambdaXsup = NULL,
+  lambdaYsup = NULL,
+  eta = 1,
+  type = "lasso",
+  inX = NULL,
+  inY = NULL,
+  inXsup = NULL,
+  inYsup = NULL,
+  muX = 0,
+  muY = 0,
+  dmode = "PLS",
+  verbose = FALSE,
+  intseed = 1
+)
 
 normvec(a)
 
@@ -26,6 +44,18 @@ searchseq(orgseq, opt)
 project(x, y)
 
 matserr(X1, X2)
+
+ginv(X, tol = sqrt(.Machine$double.eps))
+
+hcmsma(
+  object,
+  nclust = 4,
+  graph = FALSE,
+  hmethod = "ward.D2",
+  axes = c(1, 2),
+  block = "block",
+  XY = "X"
+)
 }
 \description{
 These are internal functions for \code{msma}

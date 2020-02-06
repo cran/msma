@@ -5,13 +5,25 @@
 \alias{strsimdata}
 \title{Structured Simulate Data sets}
 \usage{
-strsimdata(n = 100, ncomp = 5, Xps = 10, Yps = FALSE, rho = 0.8,
-  Z = FALSE, seed = 1, minpct = 0.25, maxpct = 0.75)
+strsimdata(
+  n = 100,
+  ncomp = 5,
+  WX = NULL,
+  Xps = 10,
+  Yps = FALSE,
+  rho = 0.8,
+  Z = FALSE,
+  seed = 1,
+  minpct = 0.25,
+  maxpct = 0.75
+)
 }
 \arguments{
 \item{n}{a numeric scalar, sample size.}
 
 \item{ncomp}{number of components}
+
+\item{WX}{a matrix or a list, weights.}
 
 \item{Xps}{a numeric vector, numbers of columns for X. The length of vector corresponds to the number of blocks.}
 

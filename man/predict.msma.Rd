@@ -19,13 +19,17 @@
 \value{
 \item{X}{predicted X}
 
+\item{sbX}{block score for X}
+
 \item{Y}{predicted Y}
+
+\item{sbY}{block score for Y}
 }
 \description{
 predict method for class "msma".
 }
 \details{
-This function provide the p value for the hypothesis test of coefficient in the model of weighted least squares method.
+This function produces a prediction from new data based on \code{\link{msma}} fit. It is mainly used in cross-validation
 }
 \examples{
 ##### data #####
