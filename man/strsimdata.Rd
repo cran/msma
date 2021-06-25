@@ -7,12 +7,15 @@
 \usage{
 strsimdata(
   n = 100,
-  ncomp = 5,
   WX = NULL,
+  ncomp = 5,
   Xps = 10,
   Yps = FALSE,
   rho = 0.8,
-  Z = FALSE,
+  Ztype = c("none", "binary", "prob")[1],
+  cz = c(1, 1),
+  cwx = c(0.1, 0.1),
+  cwy = c(0.1, 0.1),
   seed = 1,
   minpct = 0.25,
   maxpct = 0.75
@@ -21,9 +24,9 @@ strsimdata(
 \arguments{
 \item{n}{a numeric scalar, sample size.}
 
-\item{ncomp}{number of components}
-
 \item{WX}{a matrix or a list, weights.}
+
+\item{ncomp}{number of components}
 
 \item{Xps}{a numeric vector, numbers of columns for X. The length of vector corresponds to the number of blocks.}
 
@@ -31,7 +34,13 @@ strsimdata(
 
 \item{rho}{a numeric, correlation}
 
-\item{Z}{outcome}
+\item{Ztype}{a character, outcome type ("none", "binary", "prob").}
+
+\item{cz}{a numeric vector, scale for outcome}
+
+\item{cwx}{a numeric vector, scale for weights of X}
+
+\item{cwy}{a numeric vector, scale for weights of Y}
 
 \item{seed}{a seed number for generating random numbers.}
 
@@ -43,6 +52,30 @@ strsimdata(
 \item{X}{Simulated X which has a list form}
 
 \item{Y}{Simulated Y which has a list form}
+
+\item{Z}{Simulated Z which has a vector form}
+
+\item{ncomp}{}
+
+\item{Xps}{}
+
+\item{nZeroX}{}
+
+\item{idxZeroX}{}
+
+\item{Yps}{}
+
+\item{nZeroY}{}
+
+\item{idxZeroY}{}
+
+\item{WX}{}
+
+\item{WY}{}
+
+\item{ZcoefX}{}
+
+\item{ZcoefY}{}
 }
 \description{
 This is a function for generating multiblock data based on the multivariable normal distribusion

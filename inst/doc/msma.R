@@ -209,11 +209,19 @@ X3 = dataset3$X; Y3 = dataset3$Y
 (opt33 = optparasearch(X3, search.method = "regparaonly", criterion="BIC", whichselect="Xsup"))
 (fit333 = msma(X3, comp=opt33$optncomp, lambdaX=opt33$optlambdaX, lambdaXsup=opt33$optlambdaXsup))
 
-## -----------------------------------------------------------------------------
-(opt41 = optparasearch(X3, Y3, search.method = "regparaonly", criterion="BIC"))
-(fit341 = msma(X3, Y3, comp=opt41$optncomp, lambdaX=opt41$optlambdaX, lambdaY=opt41$optlambdaY, lambdaXsup=opt41$optlambdaXsup, lambdaYsup=opt41$optlambdaYsup))
+## ---- eval=FALSE--------------------------------------------------------------
+#  (opt41 = optparasearch(X3, Y3, search.method = "regparaonly", criterion="BIC"))
+#  (fit341 = msma(X3, Y3, comp=opt41$optncomp, lambdaX=opt41$optlambdaX, lambdaY=opt41$optlambdaY, lambdaXsup=opt41$optlambdaXsup, lambdaYsup=opt41$optlambdaYsup))
 
 ## -----------------------------------------------------------------------------
 (opt42 = optparasearch(X3, Y3, search.method = "regparaonly", criterion="BIC", whichselect=c("Xsup","Ysup")))
 (fit342 = msma(X3, Y3, comp=opt42$optncomp, lambdaX=opt42$optlambdaX, lambdaY=opt42$optlambdaY, lambdaXsup=opt42$optlambdaXsup, lambdaYsup=opt42$optlambdaYsup))
+
+## -----------------------------------------------------------------------------
+dataset4 = simdata(n = 50, rho = 0.8, Yps = rep(4, 2), Xps = rep(4, 3), seed=1)
+X4 = dataset4$X; Y4 = dataset4$Y 
+
+## -----------------------------------------------------------------------------
+(opt43 = optparasearch(X4, Y4, search.method = "regparaonly", criterion="BIC"))
+(fit343 = msma(X4, Y4, comp=opt43$optncomp, lambdaX=opt43$optlambdaX, lambdaY=opt43$optlambdaY, lambdaXsup=opt43$optlambdaXsup, lambdaYsup=opt43$optlambdaYsup))
 

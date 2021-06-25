@@ -17,13 +17,14 @@ optparasearch(
   inY = NULL,
   muX = 0,
   muY = 0,
-  comp = 1,
+  comp = 10,
   nfold = 5,
   maxrep = 3,
   minpct = 0,
   maxpct = 1,
   maxpct4ncomp = NULL,
   criterion = c("BIC", "CV")[1],
+  criterion4ncomp = NULL,
   whichselect = NULL,
   homo = NULL,
   intseed = 1
@@ -65,6 +66,8 @@ optparasearch(
 \item{maxpct4ncomp}{maximum candidate parameters defined as a percentile of automatically determined (possible) candidates.}
 
 \item{criterion}{a character, the evaluation criterion, "CV" for cross-validation, based on a matrix element-wise error, and "BIC" for Bayesian information criteria. The "BIC" is the default.}
+
+\item{criterion4ncomp}{a character, the evaluation criterion for the selection of the number of components, "CV" for cross-validation, based on a matrix element-wise error, and "BIC" for Bayesian information criteria.}
 
 \item{whichselect}{which blocks selected.}
 

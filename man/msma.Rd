@@ -120,6 +120,18 @@ msma(X, ...)
 \item{selectXnames}{names of selected variables for X}
 
 \item{selectYnames}{names of selected variables for Y}
+
+\item{avX}{the adjusted variance of the score for X}
+
+\item{avY}{the adjusted variance of the score for Y}
+
+\item{cpevX}{the cumulative percentage of the explained variance for X}
+
+\item{cpevY}{the cumulative percentage of the explained variance for Y}
+
+\item{reproduct}{Predictivity. Correlation between Y and the predicted Y}
+
+\item{predictiv}{Reproductivity. Correlation between the score for Y and the outcome Z}
 }
 \description{
 This is a function for a matrix decomposition method incorporating sparse and supervised modeling for a multiblock multivariable data analysis
@@ -140,17 +152,8 @@ fit1
 fit2 = msma(X, Y, comp=2, lambdaX=2, lambdaY=1:3)
 fit2
 
-##### Matrix data #####
-sigma = matrix(0.8, 10, 10)
-diag(sigma) = 1
-X2 = rmvnorm(50, rep(0, 10), sigma)
-Y2 = rmvnorm(50, rep(0, 10), sigma)
-
-fit3 = msma(X2, Y2, comp=1, lambdaX=2, lambdaY=2)
-fit3
-
 ##### Sparse Principal Component Analysis #####
-fit5 = msma(X2, comp=5, lambdaX=2.5)
-summary(fit5)
+fit3 = msma(X, comp=5, lambdaX=2.5)
+summary(fit3)
 
 }

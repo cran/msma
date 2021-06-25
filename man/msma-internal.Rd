@@ -10,6 +10,7 @@
 \alias{matserr}
 \alias{ginv}
 \alias{hcmsma}
+\alias{rmnorm}
 \title{Internal functions}
 \usage{
 msma_OneComp(
@@ -55,6 +56,15 @@ hcmsma(
   axes = c(1, 2),
   block = "block",
   XY = "X"
+)
+
+rmnorm(
+  n,
+  mean = rep(0, nrow(sigma)),
+  sigma = diag(length(mean)),
+  method = c("eigen", "svd", "chol"),
+  pre0.9_9994 = FALSE,
+  checkSymmetry = TRUE
 )
 }
 \description{
