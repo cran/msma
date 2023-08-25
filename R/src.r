@@ -51,6 +51,7 @@ NULL
 #' @param verbose information
 #' @param intseed seed number for the random number in the parameter estimation algorithm.
 #' @param x an object of class "\code{msma}", usually, a result of a call to \code{\link{msma}}
+#' @param ceps a numeric scalar for the convergence condition of the algorithm
 #' @param ... further arguments passed to or from other methods.
 #' @return \item{dmode}{Which modes "PLS" or "PCA"}
 #' @return \item{X}{Scaled X which has a list form.}
@@ -101,11 +102,14 @@ msma = function(X, ...) UseMethod("msma")
 #' @rdname msma
 #' @method msma default
 #' @export
-msma.default = function(X, Y=NULL, Z=NULL, comp=2, lambdaX=NULL, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, defmethod = "canonical", scaling = TRUE, verbose=FALSE, intseed=1, ...)
+msma.default = function(X, Y=NULL, Z=NULL, comp=2, lambdaX=NULL, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, defmethod = "canonical", scaling = TRUE, verbose=FALSE, intseed=1, ceps=0.0001, ...)
 {
+# number of nested componets
+comp2 = ifelse(length(comp)<2, 1, comp[2])
+comp = comp[1]
+
 ##### Requirement #####
 if(missing(X)) stop("X should be specified")
-#if(missing(Y)) stop("Y should be specified")
 if(is.null(Y)){ 
 dmode = "PCA"
 Y = X
@@ -177,10 +181,61 @@ tvarY = lapply(Y, function(x) sum(x^2))
 
 ############### Iteration for components Start ###############
 Xd = X; Yd = Y; out = cpevX = cpevY = list(); bic = bicX = bicY = reproduct = predictiv = rep(0, comp)
+bic2 = bic2X = bic2Y = lapply(1:comp, function(x) {tb=rep(0, comp2); names(tb)=paste0("comp", 1:comp2); tb})
+out2 = lapply(1:comp, function(x) lapply(1:comp2, function(y) NULL))
+
 for(ncomp in 1:comp){
 
 ##### Fit #####
-out[[ncomp]] = out1 = msma_OneComp(Xd, Yd, Z, lambdaX, lambdaY, lambdaXsup, lambdaYsup, eta, type, inX, inY, inXsup, inYsup, muX, muY, dmode, verbose, intseed)
+out[[ncomp]] = out1 = msma_OneComp(Xd, Yd, Z, lambdaX, lambdaY, lambdaXsup, lambdaYsup, eta, type, inX, inY, inXsup, inYsup, muX, muY, dmode, verbose, intseed, ceps)
+
+##### Nest #####
+sbXd = sbX0 = list(do.call(cbind, out1$sbX))
+sbYd = sbY0 = list(do.call(cbind, out1$sbY))
+
+for(ncomp2 in 1:comp2){
+
+if(ncomp2 == 1){
+out21 = out1
+out21$wbX[[1]] = out1$wsX; out21$wbY[[1]] = out1$wsY
+out2[[ncomp]][[ncomp2]] = out21
+}else{
+out2[[ncomp]][[ncomp2]] = out21 = msma_OneComp(sbXd, sbYd, Z, lambdaXsup, lambdaYsup, NULL, NULL, eta, type, inXsup, inYsup, NULL, NULL, muX, muY, dmode, verbose, intseed, ceps)
+}
+
+# arrange 
+ssX = do.call(cbind, lapply(out2[[ncomp]], function(y) y$ssX))
+ssY = do.call(cbind, lapply(out2[[ncomp]], function(y) y$ssY))
+
+# Prediction 
+predSX = ssX %*% project(sbX0[[1]], ssX)
+predSY = ssY %*% project(sbY0[[1]], ssY)
+
+# Deflation
+sbXd = lapply(sbX0, function(x) x - predSX)
+sbYd = lapply(sbY0, function(x) x - predSY)
+
+# arrange 
+wsX = lapply(out2[1:ncomp], function(x) do.call(cbind, lapply(x, function(y) y$wbX[[1]])))
+wsY = lapply(out2[1:ncomp], function(x) do.call(cbind, lapply(x, function(y) y$wbY[[1]])))
+
+nzwsX = lapply(wsX, function(x) apply(x, 2, function(z2) sum(z2!=0)) )
+nzwsY = lapply(wsY, function(x) apply(x, 2, function(z2) sum(z2!=0)) )
+
+# Information Criteria 
+if(dmode == "PCA"){ 
+tmpse = sum(unlist(lapply(sbXd, function(x) sum(x^2))))
+#print(tmpse)
+bic2[[ncomp]][ncomp2] = log(tmpse/(n*Xnb)) + log(n*Xnb)/(n*Xnb)*(sum(unlist(nzwsX)))
+}else
+{
+tmpse = sum(unlist(lapply(sbYd, function(x) sum(x^2))))
+bic2Y[[ncomp]][ncomp2] = log(tmpse/(n*Ynb)) + log(n*Ynb)/(n*Ynb)*(sum(unlist(nzwsY)))
+tmpse = sum(unlist(lapply(sbXd, function(x) sum(x^2))))
+bic2X[[ncomp]][ncomp2] = log(tmpse/(n*Xnb)) + log(n*Xnb)/(n*Xnb)*(sum(unlist(nzwsX)))
+}
+
+}
 
 ##### arrange #####
 sbX = lapply(1:Xnb, function(x){ do.call(cbind, lapply(out, function(y) y$sbX[[x]]))})
@@ -192,6 +247,7 @@ colnames(tmp) = paste("comp", 1:ncol(tmp), sep="")
 if(is.null(colnames(X[[x]]))){rownames(tmp) = paste("X", x, 1:ncol(X[[x]]), sep=".")}else{rownames(tmp) = colnames(X[[x]])}
 tmp
 })
+names(sbX) = names(wbX) = paste("block", 1:Xnb, sep="")
 
 wbY = lapply(1:Ynb, function(x){ 
 tmp = do.call(cbind, lapply(out, function(y) y$wbY[[x]]))
@@ -199,6 +255,7 @@ colnames(tmp) = paste("comp", 1:ncol(tmp), sep="")
 if(is.null(colnames(Y[[x]]))){rownames(tmp) = paste("Y", x, 1:ncol(Y[[x]]), sep=".")}else{rownames(tmp) = colnames(Y[[x]])}
 tmp
 })
+names(sbY) = names(wbY) = paste("block", 1:Ynb, sep="")
 
 ##### Number of nonzero #####
 nzwbX = do.call(rbind, lapply(wbX, function(z) apply(z, 2, function(z2) sum(z2!=0))))
@@ -248,14 +305,8 @@ bicX[ncomp] = log(tmpse/(n*sum(Xps))) + log(n*sum(Xps))/(n*sum(Xps))*(sum(nzwbX)
 ############### Iteration for components End ###############
 
 ##### arrange #####
-ssX = do.call(cbind, lapply(out, function(y) y$ssX))
-ssY = do.call(cbind, lapply(out, function(y) y$ssY))
-
-wsX = do.call(cbind, lapply(out, function(y) y$wsX))
-wsY = do.call(cbind, lapply(out, function(y) y$wsY))
-
-nzwsX = apply(wsX, 2, function(z2) sum(z2!=0))
-nzwsY = apply(wsY, 2, function(z2) sum(z2!=0))
+ssX = lapply(out2, function(x) do.call(cbind, lapply(x, function(y) y$ssX)))
+ssY = lapply(out2, function(x) do.call(cbind, lapply(x, function(y) y$ssY)))
 
 cpevX = do.call(cbind, cpevX)
 cpevY = do.call(cbind, cpevY)
@@ -270,13 +321,30 @@ avY = cbind(cpevY[,1], cpevY[,2]-cpevY[,1])
 avX = cbind(cpevX[,1], t(apply(cpevX, 1, diff)))
 avY = cbind(cpevY[,1], t(apply(cpevY, 1, diff)))
 }
-colnames(cpevY) = colnames(cpevX) = colnames(avY) = colnames(avX) = colnames(wsY) = colnames(wsX) = paste("comp", 1:comp, sep="")
-rownames(cpevX) = rownames(avX) = rownames(wsX) = paste("block", 1:nrow(nzwbX), sep="")
-rownames(cpevY) = rownames(avY) = rownames(wsY) = paste("block", 1:nrow(nzwbY), sep="")
+colnames(cpevY) = colnames(cpevX) = colnames(avY) = colnames(avX) = paste("comp", 1:comp, sep="")
+rownames(cpevX) = rownames(avX) = paste("block", 1:nrow(nzwbX), sep="")
+rownames(cpevY) = rownames(avY) = paste("block", 1:nrow(nzwbY), sep="")
 
-colnames(nzwbX) = colnames(nzwbY) = names(nzwsX) = names(nzwsY) = paste("comp", 1:comp, sep="")
+colnames(nzwbX) = colnames(nzwbY) = paste("comp", 1:comp, sep="")
 rownames(nzwbX) = paste("block", 1:nrow(nzwbX), sep="")
 rownames(nzwbY) = paste("block", 1:nrow(nzwbY), sep="")
+
+names(wsY) = names(wsX) = paste("comp", 1:comp, sep="")
+for(i in 1:length(wsY)){ 
+colnames(wsY[[i]]) = paste("comp", 1:comp2, sep="")
+rownames(wsY[[i]]) = paste("block", 1:nrow(nzwbY), sep="")
+}
+for(i in 1:length(wsX)){ 
+colnames(wsX[[i]]) = paste("comp", 1:comp2, sep="")
+rownames(wsX[[i]]) = paste("block", 1:nrow(nzwbX), sep="")
+}
+
+names(nzwsX) = names(nzwsY) = paste("comp", 1:comp, sep="")
+for(i in 1:length(nzwsX)) names(nzwsX[[i]]) = paste("comp", i, "-", 1:comp2, sep="") 
+for(i in 1:length(nzwsY)) names(nzwsY[[i]]) = paste("comp", i, "-", 1:comp2, sep="") 
+
+names(bic) = names(bicX) = names(bicY) = names(bic2) = paste("comp", 1:comp, sep="")
+if(comp2 == 1) bic2 = unlist(bic2)
 
 ##### Names of variables #####
 selectXnames = lapply(1:length(wbX), function(z) apply(wbX[[z]], 2, function(z2){ 
@@ -292,14 +360,14 @@ colnames(Y[[z]])[z2!=0]
 if(dmode == "PCA"){ 
 out = list(call = match.call(), 
 dmode=dmode,
-X=X, Z=Z, Xscale=Xscale, comp = comp,
+X=X, Z=Z, Xscale=Xscale, comp = c(comp, comp2),
 muX=muX, 
 wbX=wbX, sbX=sbX, ssX=ssX, wsX=wsX,
 nzwbX = nzwbX, nzwsX=nzwsX,
 selectXnames = selectXnames,
 cpevX = cpevX,
 avX = avX,
-bic = bic,
+bic = bic, bic2=bic2,
 reproduct = reproduct, predictiv=predictiv
 )
 }else
@@ -307,7 +375,7 @@ reproduct = reproduct, predictiv=predictiv
 out = list(call = match.call(), 
 dmode=dmode,
 X=X, Y=Y, Z=Z,
-Xscale=Xscale, Yscale=Yscale, comp = comp,
+Xscale=Xscale, Yscale=Yscale, comp = c(comp, comp2),
 muX=muX, muY=muY,
 wbX=wbX, sbX=sbX, wbY=wbY, sbY=sbY, ssX=ssX, wsX=wsX, ssY=ssY, wsY=wsY, 
 nzwbX = nzwbX, nzwbY = nzwbY, nzwsX=nzwsX, nzwsY=nzwsY,
@@ -315,6 +383,7 @@ selectXnames = selectXnames, selectYnames = selectYnames,
 cpevX = cpevX, cpevY = cpevY,
 avX = avX, avY = avY,
 bic = bicY, bicX = bicX, bicY = bicY,
+bic2 = bic2Y, bic2X = bic2X, bic2Y = bic2Y,
 reproduct = reproduct, predictiv=predictiv
 )
 }
@@ -330,18 +399,20 @@ print.msma = function(x, ...)
 cat("Call:\n")
 print(x$call)
 cat("\n")
-cat("Numbers of non-zeros for X: \n")
+cat("Numbers of non-zeros for X block: \n")
 print(x$nzwbX)
 cat("\n")
 cat("Numbers of non-zeros for X super: \n")
-print(x$nzwsX)
+if(x$comp[2] == 1){ nzwsX = do.call(cbind,x$nzwsX) }else{ nzwsX = x$nzwsX }
+print(nzwsX)
 cat("\n")
 if(x$dmode == "PLS"){
-cat("Numbers of non-zeros for Y: \n")
+cat("Numbers of non-zeros for Y block: \n")
 print(x$nzwbY)
 cat("\n")
 cat("Numbers of non-zeros for Y super: \n")
-print(x$nzwsY)
+if(x$comp[2] == 1){ nzwsY = do.call(cbind,x$nzwsY) }else{ nzwsY = x$nzwsY }
+print(nzwsY)
 cat("\n")
 }
 }
@@ -415,12 +486,15 @@ cat("\n")
 #'
 #' @param x an object of class "\code{msma}." Usually, a result of a call to \code{\link{msma}}
 #' @param v a character, "weight" for the weight, "score" for the score, and "cpev" for the cumulative percentage of explained variance (CPEV) .
-#' @param axes a numeric (or vector), specifying the component(s) to plot. 
+#' @param axes a numeric (or vector), specifying the root component(s) to plot. 
+#' @param axes2 a numeric (or vector), specifying the nested component(s) to plot. 
 #' @param block a character, indicating which the "block" or "super" is used. 
 #' @param plottype a character, indicating the plot type. "bar" for the bar plot, "scatter" for the scatter plot.
 #' @param XY a character, indicating "X" or "Y". "XY" for the scatter plots using X and Y scores from PLS.
 #' @param col a color vector.
-#' @param signflip a logical if the sign in the block is flipped to pose the super as possitive.
+#' @param signflip a numeric vector if the sign in the block is flipped to pose the super as possitive.
+#' @param xlim a numeric vector x coordinate ranges.
+#' @param ylim a numeric vector y coordinate ranges.
 #' @param ... further arguments passed to or from other methods.
 #'
 #' @examples
@@ -428,13 +502,15 @@ cat("\n")
 #'X = tmpdata$X; Y = tmpdata$Y 
 #'
 #'fit1 = msma(X, Y, comp=1, lambdaX=2, lambdaY=1:3)
-#'plot(fit1)
+#'#plot(fit1)
 #'
-plot.msma = function(x, v=c("weight", "score", "cpev")[1], axes = 1, block=c("block", "super")[1], plottype=c("bar", "scatter")[1], XY=c("X", "Y", "XY")[1], col=NULL, signflip=FALSE, ...) {
+plot.msma = function(x, v=c("weight", "score", "cpev")[1], axes = 1, axes2 = 1, block=c("block", "super")[1], plottype=c("bar", "scatter")[1], XY=c("X", "Y", "XY")[1], col=NULL, signflip=FALSE, xlim=NULL, ylim=NULL,...) {
+
 ### ###
 if(length(axes) > 2) stop("the length of axes should be less than 2.")
+if(length(axes2) > 2) stop("the length of axes should be less than 2.")
 
-if(x$comp == 1){
+if(x$comp[1] == 1){
 axes = 1
 if(plottype == "scatter") stop("number of components should be more than 2")
 }
@@ -443,15 +519,19 @@ if(plottype == "scatter") stop("number of components should be more than 2")
 if(XY == "XY"){
 if(length(axes) != 1) stop("the length of axes should be 1.")
 v1="s"
-s1 = x[[paste0(v1, "s", "X")]][, axes, drop=FALSE]
-s2 = x[[paste0(v1, "s", "Y")]][, axes, drop=FALSE]
+s1 = do.call(cbind, lapply(x[[paste0(v1, "sX")]][axes], function(x2) x2[, axes2,drop=FALSE]))
+s2 = do.call(cbind, lapply(x[[paste0(v1, "sY")]][axes], function(x2) x2[, axes2,drop=FALSE]))
 cor1 = cor.test(s1, s2)
-plot(s1, s2, xlab="X score", ylab="Y score", main=paste("Component", axes[1]), sub=paste0("r =", round(cor1$estimate,2), " (p", ifelse(cor1$p.value>0.0001, "=", ""), format.pval(cor1$p.value, eps=0.0001, scientific=F), ")"))
+m1 = round(max(abs(range(c(s1, s2)))))
+if(is.null(xlim)) xlim=c(-m1, m1)
+if(is.null(ylim)) ylim=c(-m1, m1)
+plot(s1, s2, xlab="X score", ylab="Y score", main=paste("Component", axes[1]), sub=paste0("r=", round(cor1$estimate,2), " (p", ifelse(cor1$p.value>0.0001, "=", ""), format.pval(round(cor1$p.value, 4), eps=0.0001, scientific=FALSE), ")"), xlim=xlim, ylim=ylim, ...)
 abline(lm(s2 ~ s1), col=2)
 }else{
 ### ###
 if(v == "cpev"){
-matplot(t(x$cpevX), type="b", xlab="Components", ylab=v, ylim=c(0,1), ...)
+if(is.null(ylim)) ylim=c(0,1)
+matplot(t(x$cpevX), type="b", xlab="Components", ylab=v, ylim=ylim, ...)
 if(x$dmode == "PLS"){
 matplot(t(x$cpevY), type="b", lty=2, add = TRUE)
 }
@@ -459,13 +539,13 @@ matplot(t(x$cpevY), type="b", lty=2, add = TRUE)
 ### ###
 if(v == "weight"){v1="w"; t1="n"}else{v1="s"; t1="p"}
 nv1 = unlist(lapply(x[[paste0(v1, "b", XY)]], nrow))
-b0 = lapply(x[[paste0(v1, "b", XY)]], function(b00) b00[, axes,drop=FALSE])
-s1 = x[[paste0(v1, "s", XY)]][, axes,drop=FALSE]
-if(signflip){ for(i in 1:length(b0)){ for(j in 1:length(axes)){ b0[[i]][,j] = sign(s1)[i,j] * b0[[i]][,j] }} }
+b1 = lapply(x[[paste0(v1, "b", XY)]], function(b10) b10[, axes,drop=FALSE])
+s1 = do.call(cbind, lapply(x[[paste0(v1, "s", XY)]][axes], function(x2) x2[, axes2,drop=FALSE]))
+if(signflip){ for(i in 1:length(b1)){ for(j in 1:length(axes)){ b1[[i]][,j] = sign(s1)[i,j] * b1[[i]][,j] }} }
 
 ### ###
 if(block == "block"){
-tmpvar = do.call(rbind, b0)
+tmpvar = do.call(rbind, b1)
 width1 = rep(1, nrow(tmpvar))
 if(is.null(col) | length(col)!=length(nv1)){col1 = rep(gray(1:length(nv1)/length(nv1)), nv1)}else{col1 = rep(col, nv1)}
 }else{
@@ -476,19 +556,22 @@ if(is.null(col) | length(col)!=length(nv1)){col1 = rep("gray", nrow(tmpvar))}els
 }
 
 ### ###
+m1 = round(max(abs(range(tmpvar))))
+if(is.null(xlim)) xlim=c(-m1, m1)
+if(is.null(ylim)) ylim=c(-m1, m1)
 if(plottype == "scatter"){
 if(length(axes) != 2) stop("the length of axes should be 2.")
-m1 = round(max(abs(range(tmpvar))))
 if(is.null(col)){ col1=1 }else{ col1=col}
-plot(tmpvar, xlab=paste("Component", axes[1]), ylab=paste("Component", axes[2]), xlim=c(-m1, m1), ylim=c(-m1, m1), type=t1,  main=block, col=col1,...)
+plot(tmpvar, xlab=paste("Component", axes[1]), ylab=paste("Component", axes[2]), xlim=xlim, ylim=ylim, type=t1,  main=block, col=col1,...)
 abline(h = 0, lty=2); abline(v = 0, lty=2);
 if(v == "weight"){for(i in 1:nrow(tmpvar)) text(tmpvar[i,1], tmpvar[i,2], rownames(tmpvar)[i])}
 }else if(plottype == "bar"){
 #par(mfrow=c(1, length(axes)), mar = c(4,max(nchar(rownames(tmpvar))),4,4))
+if(x$comp[2] > 1){ main1 = paste("(", "Nest", axes2, ")")}else{main1 = ""}
 mar1 = ifelse(is.null(rownames(tmpvar)), 4, max(nchar(rownames(tmpvar))))
-par(mar = c(4,mar1,4,4))
+par(mar = c(3, mar1, 3, 2))
 for(i in 1:length(axes)){ 
-barplot(tmpvar[,i], width1, main=paste("Component", axes[i], "(", block, ")"), las=1, col=col1, space=0.1,...)
+barplot(tmpvar[,i], width1, main=paste("Component", axes[i], main1), ylab=paste(block, v), ylim=ylim, las=1, col=col1, space=0.1,...)
 }
 }
 
@@ -753,6 +836,7 @@ list(err = err)
 #' @param criterion a character, the evaluation criterion, "CV" for cross-validation, based on a matrix element-wise error, and "BIC" for Bayesian information criteria. The "BIC" is the default.
 #' @param whichselect which blocks selected.
 #' @param intseed seed number for the random number in the parameter estimation algorithm.
+#' @param cidx Parameters used in the plot function to specify whether block or super is used. 1=block (default), 2=super.
 #' @param ... further arguments passed to or from other methods.
 #' 
 #' @return \item{comps}{numbers of components}
@@ -767,43 +851,59 @@ list(err = err)
 #' 
 #' ##### number of components search #####
 #' ncomp1 = ncompsearch(X, Y, comps = c(1, 5, 10*(1:2)), nfold=5)
-#' plot(ncomp1)
+#' #plot(ncomp1)
 #'
 ncompsearch = function(X, Y=NULL, Z=NULL, comps=1:3, lambdaX=NULL, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, nfold=5, regpara=FALSE, maxrep=3, minpct=0, maxpct=1, criterion=c("CV", "BIC")[1], whichselect=NULL, intseed=1){
 
+if(!inherits(comps, "list")){ comps = list(comps)}
+if(length(comps)<2) comps[[2]] = 1
+if(criterion=="CV") comps[[2]] = 1
+comps2 = expand.grid(comps)
+
 if(criterion=="BIC" & !regpara){
-cves = msma(X, Y, Z, comp = max(comps), lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta=eta, type=type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed)$bic
-comps = 1:max(comps)
+ncomps = unlist(lapply(comps, max))
+msmaout = msma(X, Y, Z, comp = ncomps, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta=eta, type=type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed)
+cves = msmaout[c("bic","bic2")]
+comps = lapply(ncomps, function(nc) 1:nc)
 }else{
-cv2 = lapply(comps, function(x) {
+cv2 = apply(comps2, 1, function(x) {
 if(regpara){
-cveout = regparasearch(X, Y, Z, eta, type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, comp=x, nfold=nfold, maxrep=maxrep, minpct=minpct, maxpct=maxpct, criterion=criterion, whichselect=whichselect, intseed=intseed)
-cve = cveout$mincriterion; lambdaX = cveout$optlambdaX; lambdaY = cveout$optlambdaY
+regpout = regparasearch(X, Y, Z, eta=eta, type=type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, comp=x, nfold=nfold, maxrep=maxrep, minpct=minpct, maxpct=maxpct, criterion=criterion, whichselect=whichselect, intseed=intseed)
+cve = regpout$mincriterion; lambdaX = regpout$optlambdaX; lambdaY = regpout$optlambdaY; lambdaXsup = regpout$optlambdaXsup; lambdaY = regpout$optlambdaYsup
 }else
 {
 if(criterion=="CV"){
-cve = cvmsma(X, Y, Z, comp=x, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta, type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, nfold=nfold, intseed=intseed)$err[1]
+cve = cvmsma(X, Y, Z, comp=x, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta=eta, type=type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, nfold=nfold, intseed=intseed)$err[1]
 }else if(criterion=="BIC"){
-cve = msma(X, Y, Z, comp=x, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta, type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed)$bic[x]
+msmaout = msma(X, Y, Z, comp=x, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta=eta, type=type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed)
+cve = unlist(lapply(msmaout[c("bic","bic2")], function(bic) bic[length(bic)]))
 }
 }
-list(cve = cve, lambdaX=lambdaX, lambdaY=lambdaY)
+list(cve = cve, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup)
 })
-cves = unlist(lapply(cv2, function(x) x$cve))
+if(criterion=="CV"){
+cves = list(unlist(lapply(cv2, function(x) x$cve)), rep(1,length(cv2)))
+}else{
+cves = lapply(1:2, function(x) unlist(lapply(cv2, function(y) y[x])))
 }
+}
+
+optidx = which.min(cves[[1]])
+optidx = c(optidx, which.min(cves[[2]][[optidx]]))
+optncomp = unlist(lapply(1:2, function(c1) comps[[c1]][optidx[c1]]))
+mincriterion = c(cves[[1]][optidx[1]], cves[[2]][optidx[2]])
 
 #RRC = exp(diff(log(exp(diff(log(cves))))))
 
-optidx = which.min(cves)
-optncomp = comps[optidx]
-mincriterion = cves[optidx]
 if(criterion=="BIC" & !regpara){
-optlambdaX = lambdaX; optlambdaY = lambdaY
+optlambdaX = lambdaX; optlambdaY = lambdaY; optlambdaXsup = lambdaXsup; optlambdaYsup=lambdaYsup
 }else{
-optlambdaX = cv2[[optidx]]$lambdaX; optlambdaY = cv2[[optidx]]$lambdaY
+optidx2 = which(apply(comps2,1,paste,collapse="-")==paste(optncomp,collapse="-"))
+optlambdaX = cv2[[optidx2]]$lambdaX; optlambdaY = cv2[[optidx2]]$lambdaY
+optlambdaXsup = cv2[[optidx2]]$lambdaXsup; optlambdaYsup = cv2[[optidx2]]$lambdaYsup
 }
 
-out=list(criterion=criterion, comps=comps, mincriterion=mincriterion, criterions=cves, optncomp=optncomp, optlambdaX = optlambdaX, optlambdaY = optlambdaY)
+out=list(criterion=criterion, comps=comps, mincriterion=mincriterion, criterions=cves, optncomp=optncomp, optlambdaX = optlambdaX, optlambdaY = optlambdaY, optlambdaXsup=optlambdaXsup, optlambdaYsup=optlambdaYsup)
 class(out) = "ncompsearch"
 out
 }
@@ -813,19 +913,24 @@ out
 print.ncompsearch = function(x, ...)
 {
 cat("Optimal number of components: ")
-cat(paste(x$optncomp, "(", x$criterion, ")"))
+cat(paste(paste0("(", c("block", "super"), ")"), x$optncomp, collapse=", "))
+cat("\n")
+cat("Criterion: ")
+cat(x$criterion)
 cat("\n")
 }
 
 #' @rdname ncompsearch
 #' @method plot ncompsearch
 #' @export
-plot.ncompsearch = function(x,...){
+plot.ncompsearch = function(x, cidx=1,...){
 #ylim = range(pretty(x$criterions))
 ylab1 = ifelse(x$criterion == "CV", "CV error", "BIC")
-plot(x$comps, x$criterions, type="b", xlab="Number of Components", ylab=ylab1,...)
-abline(v=x$optncomp, lty=2, col=2)
-abline(v=x$optncomp2, lty=2, col=3)
+main1 = ifelse(cidx==1, "Block Components", "Super Components")
+if(cidx==1){ e = x$criterions[[cidx]] }else{e = x$criterions[[cidx]][[paste0("comp",x$optncomp[1])]]}
+es1 = cbind(comp=x$comps[[cidx]], e=e)
+plot(es1[,1], es1[,2], type="b", xlab="Number of Components", ylab=ylab1, main=main1, ...)
+abline(v=x$optncomp[cidx], lty=2, col=2)
 }
 
 
@@ -891,11 +996,12 @@ if(minpct>=1 | minpct<0) stop("minpct should be 0 <= minpct < 1")
 if(maxpct>1 | maxpct<=0) stop("maxpct should be 0 < maxpct <= 1")
 
 abnames = c("X", "Y", "Xsup", "Ysup")
+if(length(comp)<2) comp[2] = 1
 
 ##### Candidates for Regularized Parameters #####
 intfit = msma(X, Y, Z, comp=1, lambdaX=rep(NULL, length(X)), lambdaY=rep(NULL, length(Y)), lambdaXsup=NULL, lambdaYsup=NULL, eta, type, inX, inY, inXsup=NULL, inYsup=NULL, muX = muX, muY = muY, intseed=intseed)
 
-intweight = list(X=intfit$wbX, Y=intfit$wbY, Xsup=list(intfit$wsX), Ysup=list(intfit$wsY))
+intweight = list(X=intfit$wbX, Y=intfit$wbY, Xsup=intfit$wsX, Ysup=intfit$wsY)
 if(!is.null(homo)){ 
 for(h1 in homo){
 intweight[[h1]] = list(unlist(intweight[[h1]]))
@@ -940,7 +1046,7 @@ names(lambdas) = abnames
 if(criterion=="CV"){
 cvmsma(X, Y, Z, comp = comp, lambdaX=lambdas$X, lambdaY=lambdas$Y, lambdaXsup=lambdas$Xsup, lambdaYsup=lambdas$Ysup, eta, type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, nfold=nfold, intseed=intseed)$err[1]
 }else if(criterion=="BIC"){
-msma(X, Y, Z, comp = comp, lambdaX=lambdas$X, lambdaY=lambdas$Y, lambdaXsup=lambdas$Xsup, lambdaYsup=lambdas$Ysup, eta, type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed)$bic[comp]
+msma(X, Y, Z, comp = comp, lambdaX=lambdas$X, lambdaY=lambdas$Y, lambdaXsup=lambdas$Xsup, lambdaYsup=lambdas$Ysup, eta, type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed)$bic[comp[1]]
 }
 })
 
@@ -1001,7 +1107,7 @@ cat("\n")
 #' @param X a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.
 #' @param Y a matrix or list of matrices indicating objective variable(s). This is optional. If there is no input for Y, then PCA is implemented.
 #' @param Z a vector, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.
-#' @param search.method a character indicationg search methods, see Details. Default is "simultaneous".
+#' @param search.method a character indicationg search methods, see Details. Default is "ncomp1st" (this is version 3.0 or later).
 #' @param comp numeric scalar for the number of components to be considered or the maximum canditate number of components.
 #' @param eta numeric scalar indicating the parameter indexing the penalty family. This version contains only choice 1.
 #' @param type a character, indicating the penalty family. In this version, only one choice is available: "lasso."
@@ -1045,15 +1151,17 @@ cat("\n")
 #' opt2 = optparasearch(X, Y, comp=3, nfold=5, maxrep=2, minpct=0.5)
 #' opt2
 #'
-optparasearch = function(X, Y=NULL, Z=NULL, search.method = c("simultaneous", "regpara1st", "ncomp1st", "regparaonly")[1], eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, comp=10, nfold=5, maxrep=3, minpct=0, maxpct=1, maxpct4ncomp=NULL, criterion=c("BIC","CV")[1], criterion4ncomp=NULL, whichselect=NULL, homo=NULL, intseed=1){
+optparasearch = function(X, Y=NULL, Z=NULL, search.method = c("ncomp1st", "regpara1st", "regparaonly", "simultaneous")[1], eta=1, type="lasso", inX=NULL, inY=NULL, muX = 0, muY = 0, comp=10, nfold=5, maxrep=3, minpct=0, maxpct=1, maxpct4ncomp=NULL, criterion=c("BIC","CV")[1], criterion4ncomp=NULL, whichselect=NULL, homo=NULL, intseed=1){
 
-comps1 = 1:comp
+if(length(comp)<2) comp[2] = 1
+comps1 = lapply(comp, function(c1) 1:c1)
+
 if(is.null(criterion4ncomp)) criterion4ncomp=criterion
 
 ##### both (regpara first) #####
 if(search.method == "regpara1st"){
 regpara1 = regparasearch(X=X, Y=Y, Z=Z, comp=comp, muX = muX, muY = muY, nfold=nfold, minpct=minpct, maxpct=maxpct, maxrep=maxrep, criterion=criterion, whichselect=whichselect, homo=homo, intseed=intseed)
-params = ncompsearch(X=X, Y=Y, Z=Z, comps = comps1, lambdaX=regpara1$optlambdaX, lambdaY=regpara1$optlambdaY, muX = muX, muY = muY, nfold=nfold, regpara=FALSE, criterion=criterion4ncomp, whichselect=NULL)
+params = ncompsearch(X=X, Y=Y, Z=Z, comps = comps1, lambdaX=regpara1$optlambdaX, lambdaY=regpara1$optlambdaY, lambdaXsup=regpara1$optlambdaXsup, lambdaYsup=regpara1$optlambdaYsup, muX = muX, muY = muY, nfold=nfold, regpara=FALSE, criterion=criterion4ncomp, whichselect=NULL)
 ##### both (ncomp first) #####
 }else if(search.method == "ncomp1st"){
 #params = ncompsearch(X=X, Y=Y, Z=Z, comps = min(c(min(unlist(lapply(X,dim))), min(unlist(lapply(Y,dim))))), muX = muX, muY = muY, nfold=nfold1, regpara=FALSE, criterion=criterion)
@@ -1096,11 +1204,12 @@ print.optparasearch = function(x, ...)
 {
 cat("Search method: ")
 cat(paste(x$search.method))
+cat(", ")
 cat("Search criterion: ")
 cat(paste(x$criterion))
 cat("\n\n")
 cat("Optimal number of components: ")
-cat(paste(x$optncomp))
+cat(paste(x$optncomp, collapse=", "))
 cat("\n\n")
 cat("Optimal parameters: \n")
 cat("\n")
@@ -1132,7 +1241,7 @@ cat("\n")
 #'
 #' @rdname msma-internal
 #' @keywords internal
-msma_OneComp = function(X, Y, Z=NULL, lambdaX=NULL, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, dmode = "PLS", verbose=FALSE, intseed=1){
+msma_OneComp = function(X, Y, Z=NULL, lambdaX=NULL, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, dmode = "PLS", verbose=FALSE, intseed=1, ceps=0.0001){
 
 Ynb = length(Y); Xnb = length(X)
 
@@ -1188,7 +1297,7 @@ difX = drop(crossprod(ssX - oldssX))
 difY = drop(crossprod(ssY - oldssY))
 dif = max(difX, difY)
 if(verbose) print(c(itr, dif))
-if(dif < 0.0001 | itr > 20){break}
+if(dif < ceps | itr > 20){break}
 }
 oldssX = ssX
 oldssY = ssY
@@ -1349,90 +1458,134 @@ list(X=X, Y=Y)
 #' @return \item{ZcoefX}{}
 #' @return \item{ZcoefY}{}
 strsimdata = function(n = 100, WX=NULL, ncomp=5, Xps = 10, Yps = FALSE, rho=0.8, Ztype=c("none", "binary", "prob")[1], cz=c(1,1), cwx=c(0.1, 0.1), cwy=c(0.1, 0.1), seed=1, minpct = 0.25, maxpct = 0.75){
-#tmp = list(n = 100, ncomp=2, Xps=c(4,4), Yps=c(3,4), Ztype=c("none", "binary", "prob")[2], cz=c(1,1), seed=1, rho=0.8, minpct = 0.25, maxpct = 0.75, WX=NULL);cwx=c(0.1, 0.1); cwy=c(0.1, 0.1); attach(tmp)
+#tmp = list(n = 20, ncomp=c(2, 3), Xps=c(5,5,5,5), Yps=c(3,4), Ztype=c("none", "binary", "prob")[2], cz=c(1,1), seed=1, rho=0.8, minpct = 0.25, maxpct = 0.75, WX=NULL);cwx=c(0.1, 0.1); cwy=c(0.1, 0.1); attach(tmp)
 
 ncomp[2] = ifelse(length(ncomp)<2, 1, ncomp[2])
 
 nblockX = length(Xps); nblockY = length(Yps); 
 set.seed(seed)
 
-##### Generate X #####
+########## Generate X ##########
 if(is.null(WX)){
-Xps2 = list(Xps, nblockX) #list(block, super)
+Xps2 = list(Xps, rep(nblockX, ncomp[1])) #list(block, super)
+names(Xps2) = c("block", "super")
+
+#####
+idxZeroX = lapply(1:length(Xps2), function(i){
+xps = Xps2[[i]]
+if(length(xps)==1 & xps[1]==1){ out = list(list(NULL)) }else{
+out=lapply(xps, function(p){ 
+tmp = lapply(1:ncomp[i], function(x) sort(sample(p, p*runif(1, minpct, maxpct))))
+names(tmp) = paste0(ifelse(i==1, "rtcomp", "ntcomp"), 1:ncomp[i])
+allzero = as.numeric(names(which(sort(table(unlist(tmp))) == ncomp[i])))
+k = which.max(unlist(lapply(tmp, length)))
+tmp[[k]] = tmp[[k]][!(tmp[[k]] %in% allzero)]
+tmp
+})
+}
+names(out) = paste0(ifelse(i==1, "block", "comp"), 1:length(xps))
+out
+})
+names(idxZeroX) = c("block", "super")
 
 #####
 WX = list(
 block=lapply(1:nblockX, function(x){ 
-out = do.call(cbind, lapply(1:ncomp[1], function(y){ v=normvec(rnorm(Xps[x])); v[rank(abs(v)) %in% seq(0, length(v)*runif(1, minpct, maxpct))]=0; v}))
-colnames(out) = paste0("comp", 1:ncomp[1])
+out = do.call(cbind, lapply(1:ncomp[1], function(y){ v=rnorm(Xps[x]); v[idxZeroX[[1]][[x]][[y]]]=0; normvec(v)}))
+colnames(out) = paste0("rtcomp", 1:ncomp[1])
 rownames(out) = paste0("v", 1:Xps[x])
 out
 }), 
-super=do.call(cbind, lapply(1:ncomp[1], function(x){ v=normvec(rnorm(Xps2[[2]])); v}))
+super=lapply(1:ncomp[1], function(x){
+out = do.call(cbind, lapply(1:ncomp[2], function(y){ v=rnorm(nblockX); v[idxZeroX[[2]][[x]][[y]]]=0; normvec(v)}))
+colnames(out) = paste0("ntcomp", 1:ncomp[2])
+rownames(out) = paste0("block", 1:nblockX)
+out
+})
 )
-colnames(WX$super) = paste0("comp", 1:ncomp[1])
-rownames(WX$super) = names(WX$block) = paste0("block", 1:nblockX)
+names(WX$super) = paste0("rtcomp", 1:ncomp[1])
+names(WX$block) = paste0("block", 1:nblockX)
 
 #####
 }else{
 if(inherits(WX, "matrix")){ WX = list(WX)}
 ncomp=unlist(lapply(WX, function(wx) ncol(wx[[1]])))
-Xps = unlist(lapply(WX, function(wx) unlist(lapply(wx, function(wx2)nrow(wx2)))))
+Xps = unlist(lapply(WX[[1]], function(wx2)nrow(wx2)))
+idxZeroX = lapply(1:length(WX), function(wi)
+{if(wi==1){NULL}else{lapply(WX[[wi]], function(wx){ lapply(1:ncol(wx), function(c1) which(wx[,c1] == 0 )) }) 
+}})
 }
 
 #####
-idxZeroX = list(
-lapply(WX[[1]], function(wx){ lapply(1:ncol(wx), function(c1) which(wx[,c1] == 0 )) }), 
-lapply(1:ncol(WX[[2]]), function(c1) which(WX[[2]][,c1] == 0 ))
-)
-names(idxZeroX) = c("block", "super")
+nZeroX = lapply(idxZeroX, function(x) do.call(rbind, lapply(x, function(x1) unlist(lapply(x1, function(x2){ iz=length(x2); ifelse(is.null(iz),0,iz)})) )))
 
 #####
-nZeroX = lapply(idxZeroX, function(x) lapply(x, function(x1) unlist(lapply(x1, function(x2){ iz=length(x2); ifelse(is.null(iz),0,iz)})) ))
+SUX = lapply(1:ncomp[1], function(y){
+out = sapply(1:ncomp[2], function(x) rnorm(n, 0, 1)) 
+out = out[,rank(-diag(var(out))),drop=FALSE]
+colnames(out) = paste0("ntcomp", 1:ncomp[2])
+out
+})
+names(SUX) = paste0("rtcomp", 1:ncomp[1])
 
-#####
-SUX = sapply(1:ncomp[1], function(x) rnorm(n, 0, 1)) #SUX = matrix(rnorm(n*ncomp), n, ncomp)
-SUX = SUX[,rank(-diag(var(SUX)))]
-UX0 = lapply(1:ncomp[1], function(x) SUX[,x] %*% ginv(WX$super[,ncomp[1]]*cwx[2]))
+UX0 = lapply(1:ncomp[1], function(x) SUX[[x]] %*% ginv(WX$super[[x]]*cwx[2]))
+names(UX0) = paste0("rtcomp", 1:ncomp[1])
 UX = lapply(1:nblockX, function(x) do.call(cbind, lapply(UX0, function(y) y[,x])))
 
 X = lapply(1:nblockX, function(x) UX[[x]] %*% ginv(WX$block[[x]]*cwx[1]))
+names(X) = names(UX) = paste0("block", 1:nblockX)
 
-##### Generate Y #####
+########## Generate Y ##########
 if(!Yps[1]){idxZeroY = NULL; nZeroY = NULL; Y=NULL; WY=NULL; SUY=NULL}else
 {
-Yps2 = list(Yps, nblockY) #list(block, super)
+Yps2 = list(Yps, rep(nblockY, ncomp[1])) #list(block, super)
+
+#####
+idxZeroY = lapply(1:length(Yps2), function(i){
+xps = Yps2[[i]]
+if(length(xps)==1 & xps[1]==1){ out = list(list(NULL)) }else{
+out=lapply(xps, function(p){ 
+tmp = lapply(1:ncomp[i], function(x) sort(sample(p, p*runif(1, minpct, maxpct))))
+names(tmp) = paste0("comp", 1:ncomp[i])
+allzero = as.numeric(names(which(sort(table(unlist(tmp))) == ncomp[i])))
+k = which.max(unlist(lapply(tmp, length)))
+tmp[[k]] = tmp[[k]][!(tmp[[k]] %in% allzero)]
+tmp
+})
+}
+names(out) = paste0(ifelse(i==1, "block", "comp"), 1:length(xps))
+out
+})
+names(idxZeroY) = c("block", "super")
 
 #####
 WY = list(
 block=lapply(1:nblockY, function(x){ 
-out = do.call(cbind, lapply(1:ncomp[1], function(y){ v=normvec(rnorm(Yps[x])); v[rank(abs(v)) %in% seq(0, length(v)*runif(1, minpct, maxpct))]=0; v}))
+out = do.call(cbind, lapply(1:ncomp[1], function(y){ v=normvec(rnorm(Yps[x])); v[idxZeroY[[1]][[x]][[y]]]=0; v}))
 colnames(out) = paste0("comp", 1:ncomp[1])
 rownames(out) = paste0("v", 1:Yps[x])
 out
 }), 
-super=do.call(cbind, lapply(1:ncomp[1], function(x) normvec(rnorm(Yps2[[2]]))))
+super=lapply(1:ncomp[1], function(x){
+out = do.call(cbind, lapply(1:ncomp[2], function(y){ v=normvec(rnorm(nblockY)); v[idxZeroY[[2]][[x]][[y]]]=0; v}))
+colnames(out) = paste0("comp", 1:ncomp[2])
+rownames(out) = paste0("block", 1:nblockY)
+out
+})
 )
-colnames(WY$super) = paste0("comp", 1:ncomp[1])
-rownames(WY$super) = names(WY$block) = paste0("block", 1:nblockY)
-
-#####
-idxZeroY = list(
-lapply(WY[[1]], function(wx){ lapply(1:ncol(wx), function(c1) which(wx[,c1] == 0 )) }), 
-lapply(1:ncol(WY[[2]]), function(c1) which(WY[[2]][,c1] == 0 ))
-)
-names(idxZeroY) = c("block", "super")
+names(WY$super) = paste0("rtcomp", 1:ncomp[1])
+names(WY$block) = paste0("block", 1:nblockY)
 
 #####
 nZeroY = lapply(idxZeroY, function(x) lapply(x, function(x1) unlist(lapply(x1, function(x2){ iz=length(x2); ifelse(is.null(iz),0,iz)})) ))
 
 #####
-SUY = apply(SUX, 2, function(x) rnorm(n, rho*x, sqrt(1-rho^2)))
-#UY = lapply(Yps, function(p) matrix(rnorm(n*ncomp), n, ncomp))
-UY0 = lapply(1:ncomp[1], function(x) SUY[,x] %*% ginv(WY$super[,ncomp[1]]))
+SUY = lapply(SUX, function(y) apply(y, 2, function(x) rnorm(n, rho*x, sqrt(1-rho^2))))
+UY0 = lapply(1:ncomp[1], function(x) SUY[[x]] %*% ginv(WY$super[[x]]))
+names(UY0) = paste0("rtcomp", 1:ncomp[1])
 UY = lapply(1:nblockY, function(x) do.call(cbind, lapply(UY0, function(y) y[,x])))
-
 Y = lapply(1:nblockY, function(x) UY[[x]] %*% ginv(WY$block[[x]]))
+names(Y) = names(UY) = paste0("block", 1:nblockY)
 }
 
 ##### Generate Z #####
@@ -1445,11 +1598,11 @@ UX2b = UX2 %*% ZcoefX
 UY2b = 0; ZcoefY = NULL
 if(Yps[1]){
 UY2 = do.call(cbind, UY)
-ZcoefY = normvec(rnorm(nblockY*ncomp[1], abs(1/c(WY[[2]])), 0.01)) * cz[2]
+ZcoefY = normvec(rnorm(nblockY*ncomp, ifelse(c(WY[[2]])==0, 0, abs(1/c(WY[[2]]))), 0.01)) * cz[2]
 UY2b = UY2 %*% ZcoefY
 }
 UXYb = UX2b + UY2b
-UXYb = scale(UXYb, scale=FALSE)
+UXYb = c(scale(UXYb, scale=FALSE))
 Zprob = exp(UXYb)/(1+exp(UXYb))
 Z = sapply(Zprob, function(x) rbinom(1, 1, x))
 if(Ztype %in% "prob") Z = Zprob
@@ -1459,7 +1612,6 @@ Z = ZcoefX = ZcoefY = NULL
 
 list(X=X, Y=Y, Z=Z, ncomp=ncomp, Xps=Xps, nZeroX=nZeroX, idxZeroX=idxZeroX, nZeroY=nZeroY, idxZeroY=idxZeroY, WX=WX, WY=WY, ZcoefX=ZcoefX, ZcoefY=ZcoefY, SUX=SUX, SUY=SUY)
 }
-
 
 
 
@@ -1476,7 +1628,30 @@ ginv=function(X, tol = sqrt(.Machine$double.eps))
     dimnames = dnx[2:1])
 }
 
-#' @rdname msma-internal
+#' Hierarchical cluster analysis 
+#'
+#' This is a function for performing a hierarchical cluster analysis using scores
+#' 
+#' This function performs a hierarchical cluster analysis using scores.
+#'
+#' @name hcmsma
+#' @aliases hcmsma
+#' @rdname hcmsma
+#' @docType methods
+#' @export
+#'
+#' @param object an object of class "\code{msma}", usually, a result of a call to \code{\link{msma}}
+#' @param nclust a numeric scalar, number of clusters.
+#' @param graph a numeric vector, numbers of columns for Y. The length of vector corresponds to the number of blocks.
+#' @param hmethod, the agglomeration method to be used in the function "\code{hclust}".
+#' @param axes a numeric (or vector), specifying the component(s) to analyze. 
+#' @param block a character, indicating which the "block" or "super" is used. 
+#' @param XY a character, indicating "X" or "Y". 
+#'
+#' @return \item{hcout}{An object of class hclust}
+#' @return \item{clusters}{a vector with group memberships}
+#' @return \item{object}{an object of class "\code{msma}", usually, a result of a call to \code{\link{msma}}}
+#'
 hcmsma = function(object, nclust=4, graph=FALSE, hmethod="ward.D2", axes = c(1, 2), block="block", XY="X"){
 v1 = "s"
 if(block == "block"){
@@ -1533,3 +1708,4 @@ retval <- sweep(retval, 2, mean, "+")
 colnames(retval) <- names(mean)
 retval
 }
+

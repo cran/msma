@@ -30,6 +30,7 @@ msma(X, ...)
   scaling = TRUE,
   verbose = FALSE,
   intseed = 1,
+  ceps = 1e-04,
   ...
 )
 
@@ -77,6 +78,8 @@ msma(X, ...)
 \item{verbose}{information}
 
 \item{intseed}{seed number for the random number in the parameter estimation algorithm.}
+
+\item{ceps}{a numeric scalar for the convergence condition of the algorithm}
 
 \item{x}{an object of class "\code{msma}", usually, a result of a call to \code{\link{msma}}}
 }

@@ -9,11 +9,14 @@
   x,
   v = c("weight", "score", "cpev")[1],
   axes = 1,
+  axes2 = 1,
   block = c("block", "super")[1],
   plottype = c("bar", "scatter")[1],
   XY = c("X", "Y", "XY")[1],
   col = NULL,
   signflip = FALSE,
+  xlim = NULL,
+  ylim = NULL,
   ...
 )
 }
@@ -22,7 +25,9 @@
 
 \item{v}{a character, "weight" for the weight, "score" for the score, and "cpev" for the cumulative percentage of explained variance (CPEV) .}
 
-\item{axes}{a numeric (or vector), specifying the component(s) to plot.}
+\item{axes}{a numeric (or vector), specifying the root component(s) to plot.}
+
+\item{axes2}{a numeric (or vector), specifying the nested component(s) to plot.}
 
 \item{block}{a character, indicating which the "block" or "super" is used.}
 
@@ -32,7 +37,11 @@
 
 \item{col}{a color vector.}
 
-\item{signflip}{a logical if the sign in the block is flipped to pose the super as possitive.}
+\item{signflip}{a numeric vector if the sign in the block is flipped to pose the super as possitive.}
+
+\item{xlim}{a numeric vector x coordinate ranges.}
+
+\item{ylim}{a numeric vector y coordinate ranges.}
 
 \item{...}{further arguments passed to or from other methods.}
 }
@@ -47,6 +56,6 @@ tmpdata = simdata(n = 50, rho = 0.8, Yps = c(10, 12, 15), Xps = 20, seed=1)
 X = tmpdata$X; Y = tmpdata$Y 
 
 fit1 = msma(X, Y, comp=1, lambdaX=2, lambdaY=1:3)
-plot(fit1)
+#plot(fit1)
 
 }

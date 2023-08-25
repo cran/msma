@@ -10,7 +10,7 @@ optparasearch(
   X,
   Y = NULL,
   Z = NULL,
-  search.method = c("simultaneous", "regpara1st", "ncomp1st", "regparaonly")[1],
+  search.method = c("ncomp1st", "regpara1st", "regparaonly", "simultaneous")[1],
   eta = 1,
   type = "lasso",
   inX = NULL,
@@ -39,7 +39,7 @@ optparasearch(
 
 \item{Z}{a vector, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.}
 
-\item{search.method}{a character indicationg search methods, see Details. Default is "simultaneous".}
+\item{search.method}{a character indicationg search methods, see Details. Default is "ncomp1st" (this is version 3.0 or later).}
 
 \item{eta}{numeric scalar indicating the parameter indexing the penalty family. This version contains only choice 1.}
 

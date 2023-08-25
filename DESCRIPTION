@@ -1,8 +1,8 @@
 Package: msma
 Type: Package
 Title: Multiblock Sparse Multivariable Analysis
-Version: 2.2
-Date: 2021-06-25
+Version: 3.0
+Date: 2023-08-25
 Author: Atsushi Kawaguchi
 Maintainer: Atsushi Kawaguchi <kawa_a24@yahoo.co.jp>
 Depends: R (>= 3.5)
@@ -11,6 +11,6 @@ License: GPL (>= 2)
 Suggests: knitr, rmarkdown
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2021-06-25 01:06:24 UTC; kawaguchi
+Packaged: 2023-08-25 04:01:27 UTC; kawaa
 Repository: CRAN
-Date/Publication: 2021-06-25 11:50:07 UTC
+Date/Publication: 2023-08-25 04:40:02 UTC

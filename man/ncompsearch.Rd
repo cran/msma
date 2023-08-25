@@ -36,7 +36,7 @@ ncompsearch(
 
 \method{print}{ncompsearch}(x, ...)
 
-\method{plot}{ncompsearch}(x, ...)
+\method{plot}{ncompsearch}(x, cidx = 1, ...)
 }
 \arguments{
 \item{X}{a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.}
@@ -90,6 +90,8 @@ ncompsearch(
 \item{x}{an object of class "\code{ncompsearch}", usually, a result of a call to \code{\link{ncompsearch}}}
 
 \item{...}{further arguments passed to or from other methods.}
+
+\item{cidx}{Parameters used in the plot function to specify whether block or super is used. 1=block (default), 2=super.}
 }
 \value{
 \item{comps}{numbers of components}
@@ -113,6 +115,6 @@ X = tmpdata$X; Y = tmpdata$Y
 
 ##### number of components search #####
 ncomp1 = ncompsearch(X, Y, comps = c(1, 5, 10*(1:2)), nfold=5)
-plot(ncomp1)
+#plot(ncomp1)
 
 }

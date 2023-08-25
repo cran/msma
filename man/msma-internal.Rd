@@ -9,7 +9,6 @@
 \alias{project}
 \alias{matserr}
 \alias{ginv}
-\alias{hcmsma}
 \alias{rmnorm}
 \title{Internal functions}
 \usage{
@@ -31,7 +30,8 @@ msma_OneComp(
   muY = 0,
   dmode = "PLS",
   verbose = FALSE,
-  intseed = 1
+  intseed = 1,
+  ceps = 1e-04
 )
 
 normvec(a)
@@ -47,16 +47,6 @@ project(x, y)
 matserr(X1, X2)
 
 ginv(X, tol = sqrt(.Machine$double.eps))
-
-hcmsma(
-  object,
-  nclust = 4,
-  graph = FALSE,
-  hmethod = "ward.D2",
-  axes = c(1, 2),
-  block = "block",
-  XY = "X"
-)
 
 rmnorm(
   n,
