@@ -1,11 +1,11 @@
-1614b26053e1d52f8015419763364931 *DESCRIPTION
+5bad47810d8e1a8a9dbf07480edcf863 *DESCRIPTION
 6b7842eeeb78299623590a1021475de5 *NAMESPACE
 0683b52105e99f1c5d3491b2706e5d97 *R/src.r
 a9f7aacb5f66cc05c7f8bb6d33649862 *build/vignette.rds
 5b3c78d38efbdf4d3b426eb61b267ad9 *inst/CITATION
-88fed19326b0d2d1026bf890960f009f *inst/doc/msma.R
+5a0c0f35e1cab87de31a413fe53892f2 *inst/doc/msma.R
 bbeb7c1c842bad743d86f7c8a07d8d13 *inst/doc/msma.Rmd
-0ed0a5ddfb631caf31e262c54d59f14b *inst/doc/msma.html
+d6deb1fa07c600a7368162ced33c251d *inst/doc/msma.html
 02dba131e30a5de82d498dd1173a100c *man/cvmsma.Rd
 e5e3656bad53a8f6b09ecdf3d7235e2c *man/hcmsma.Rd
 ec97f32c4f250a7156bd4e91d406331c *man/msma-internal.Rd

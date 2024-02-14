@@ -283,11 +283,11 @@ search.methods = c("regparaonly", "regpara1st", "ncomp1st", "simultaneous")
 (opt344 = optparasearch(X3, search.method = "regpara1st", criterion="BIC", comp=c(8, 8)))
 (fit344 = msma(X3, comp=opt344$optncomp, lambdaX=opt344$optlambdaX, lambdaXsup=opt344$optlambdaXsup))
 
-## ---- eval=FALSE--------------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  (opt345 = optparasearch(X3, search.method = "simultaneous", criterion="BIC", comp=c(8, 8)))
 #  (fit345 = msma(X3, comp=opt345$optncomp, lambdaX=opt345$optlambdaX))
 
-## ---- eval=FALSE--------------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  (opt41 = optparasearch(X3, Y3, search.method = "regparaonly", criterion="BIC"))
 #  (fit341 = msma(X3, Y3, comp=opt41$optncomp, lambdaX=opt41$optlambdaX, lambdaY=opt41$optlambdaY, lambdaXsup=opt41$optlambdaXsup, lambdaYsup=opt41$optlambdaYsup))
 
