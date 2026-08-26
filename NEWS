@@ -1,0 +1,26 @@
+CHANGES IN VERSION 3.2
+
+NEW FEATURES
+
+* Added sparse non-negative matrix factorization at the super level through
+  sprmethod = "sNMF".
+* Z can now contain multiple supervision variables in separate columns.
+* Added con4spv to specify weights for combining multiple columns of Z.
+
+COMPATIBILITY
+
+* Calls using only version 3.1 functionality are dispatched to the preserved
+  version 3.1 computational engine.
+* The extended computational engine is used only when NMF, sNMF, multivariate
+  Z, or con4spv is explicitly requested.
+
+BUG FIXES
+
+* A one-column matrix supplied to Z is now normalized to a vector before the
+  preserved version 3.1 engine is called. This makes Z = z and Z = cbind(z)
+  produce identical numerical results and returned objects.
+
+PACKAGE CHECKS
+
+* Renamed the internal legacy and extended computational engines so that they
+  are not interpreted as unregistered S3 methods of the msma generic.

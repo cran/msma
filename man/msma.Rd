@@ -31,6 +31,9 @@ msma(X, ...)
   verbose = FALSE,
   intseed = 1,
   ceps = 1e-04,
+  sprmethod = c("PCA", "NMF", "sNMF", "CMP")[1],
+  nneg = c("posneg", "absolute", "min")[1],
+  con4spv = NULL,
   ...
 )
 
@@ -43,7 +46,7 @@ msma(X, ...)
 
 \item{Y}{a matrix or list of matrices indicating objective variable(s). This is optional. If there is no input for Y, then PCA is implemented.}
 
-\item{Z}{a vector, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.}
+\item{Z}{a vector or matrix, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The (row) length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.}
 
 \item{comp}{numeric scalar for the maximum number of componets to be considered.}
 
@@ -55,9 +58,9 @@ msma(X, ...)
 
 \item{lambdaYsup}{numeric vector of regularized parameters for the super weight of Y with length equal to the number of blocks. If omitted, no regularization is conducted.}
 
-\item{eta}{numeric scalar indicating the parameter indexing the penalty family. This version contains only choice 1.}
+\item{eta}{numeric scalar indicating the parameter indexing the penalty family that can be set with the argument type.}
 
-\item{type}{a character, indicating the penalty family. In this version, only one choice is available: "lasso."}
+\item{type}{a character, indicating the penalty family. In this version, the following choices are available: "lasso", "hard", "scad" and "mcp."}
 
 \item{inX}{a vector or list of numeric vectors specifying the variables in X, always included in the model}
 
@@ -80,6 +83,12 @@ msma(X, ...)
 \item{intseed}{seed number for the random number in the parameter estimation algorithm.}
 
 \item{ceps}{a numeric scalar for the convergence condition of the algorithm}
+
+\item{sprmethod}{a character,}
+
+\item{nneg}{a character}
+
+\item{con4spv}{a numeric vector}
 
 \item{x}{an object of class "\code{msma}", usually, a result of a call to \code{\link{msma}}}
 }

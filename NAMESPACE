@@ -5,6 +5,9 @@ S3method(plot,msma)
 S3method(plot,ncompsearch)
 S3method(predict,msma)
 S3method(print,msma)
+S3method(print,ncompsearch)
+S3method(print,optparasearch)
+S3method(print,regparasearch)
 S3method(print,summary.msma)
 S3method(summary,msma)
 export(cvmsma)
@@ -16,22 +19,26 @@ export(regparasearch)
 export(simdata)
 export(strsimdata)
 importFrom(grDevices,gray)
-importFrom(graphics,abline)
-importFrom(graphics,barplot)
-importFrom(graphics,matplot)
-importFrom(graphics,par)
-importFrom(graphics,plot)
-importFrom(graphics,text)
-importFrom(stats,cor)
-importFrom(stats,cor.test)
-importFrom(stats,cutree)
-importFrom(stats,dist)
-importFrom(stats,hclust)
-importFrom(stats,lm)
-importFrom(stats,predict)
-importFrom(stats,quantile)
-importFrom(stats,rbinom)
-importFrom(stats,rect.hclust)
-importFrom(stats,rnorm)
-importFrom(stats,runif)
-importFrom(stats,var)
+importFrom(graphics,
+  abline,
+  barplot,
+  matplot,
+  par,
+  plot,
+  text
+)
+importFrom(stats,
+  cor,
+  cor.test,
+  cutree,
+  dist,
+  hclust,
+  lm,
+  predict,
+  quantile,
+  rbinom,
+  rect.hclust,
+  rnorm,
+  runif,
+  var
+)

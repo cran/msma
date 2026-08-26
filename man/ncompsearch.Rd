@@ -31,7 +31,9 @@ ncompsearch(
   maxpct = 1,
   criterion = c("CV", "BIC")[1],
   whichselect = NULL,
-  intseed = 1
+  intseed = 1,
+  sprmethod = c("PCA", "NMF", "sNMF", "CMP")[1],
+  nneg = c("posneg", "absolute", "min")[1]
 )
 
 \method{print}{ncompsearch}(x, ...)
@@ -86,6 +88,10 @@ ncompsearch(
 \item{whichselect}{which blocks selected.}
 
 \item{intseed}{seed number for the random number in the parameter estimation algorithm.}
+
+\item{sprmethod}{a character specifying the super-level decomposition method: PCA, NMF, sNMF, or CMP.}
+
+\item{nneg}{a character specifying the non-negative transformation: posneg, absolute, or min.}
 
 \item{x}{an object of class "\code{ncompsearch}", usually, a result of a call to \code{\link{ncompsearch}}}
 

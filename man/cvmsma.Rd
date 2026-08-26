@@ -24,7 +24,10 @@ cvmsma(
   muY = 0,
   nfold = 5,
   seed = 1,
-  intseed = 1
+  intseed = 1,
+  sprmethod = c("PCA", "NMF", "sNMF", "CMP")[1],
+  nneg = c("posneg", "absolute", "min")[1],
+  con4spv = NULL
 )
 }
 \arguments{
@@ -65,6 +68,12 @@ cvmsma(
 \item{seed}{number of seed for the random number.}
 
 \item{intseed}{seed number for the random number in the parameter estimation algorithm.}
+
+\item{sprmethod}{a character specifying the super-level decomposition method: PCA, NMF, sNMF, or CMP.}
+
+\item{nneg}{a character specifying the non-negative transformation: posneg, absolute, or min.}
+
+\item{con4spv}{a numeric vector of weights used to combine multiple columns of Z. If NULL, equal weights are used.}
 }
 \value{
 \item{err}{The mean cross-validated errors which has three elements consisting of the mean of errors for X and Y, the errors for X and for Y.}

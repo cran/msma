@@ -5,10 +5,12 @@
 \alias{msma-package}
 \title{Multiblock Sparse Matrix Analysis Package}
 \description{
-A Package for Implementation of the method
+A package for multiblock sparse multivariable analysis.
 }
 \references{
-Kawaguchi A, Yamashita F (2017). Supervised Multiblock Sparse Multivariable Analysis with Application to Multimodal Brain Imaging Genetics. Biostatistics, 18(4) 651-665.
+Kawaguchi A, Yamashita F (2017). Supervised Multiblock Sparse
+Multivariable Analysis with Application to Multimodal Brain Imaging
+Genetics. Biostatistics, 18(4), 651-665.
 }
 \seealso{
 \code{\link{msma}}
@@ -16,4 +18,4 @@ Kawaguchi A, Yamashita F (2017). Supervised Multiblock Sparse Multivariable Anal
 \author{
 Atsushi Kawaguchi. \email{kawa_a24@yahoo.co.jp}
 }
-\keyword{documentation}
+\keyword{internal}

@@ -1,21 +1,18 @@
 #' Multiblock Sparse Matrix Analysis Package
 #'
-#' A Package for Implementation of the method
+#' A package for multiblock sparse multivariable analysis.
 #'
-#' @name msma-package
-#' @aliases msma-package
-#' @rdname msma-package
-#' @docType package
-#' @keywords documentation
-#'
+#' @keywords internal
 #' @author Atsushi Kawaguchi. \email{kawa_a24@@yahoo.co.jp}
 #' @seealso \code{\link{msma}}
-#' @references 
-#' Kawaguchi A, Yamashita F (2017). Supervised Multiblock Sparse Multivariable Analysis with Application to Multimodal Brain Imaging Genetics. Biostatistics, 18(4) 651-665. 
+#' @references
+#' Kawaguchi A, Yamashita F (2017). Supervised Multiblock Sparse
+#' Multivariable Analysis with Application to Multimodal Brain Imaging
+#' Genetics. Biostatistics, 18(4), 651-665.
 #' @importFrom grDevices gray
 #' @importFrom graphics abline matplot plot barplot par text
 #' @importFrom stats cor cor.test var predict quantile rbinom rnorm runif cutree dist hclust lm rect.hclust
-NULL
+"_PACKAGE"
 
 ##########################################################################################################################################
 #' Multiblock Sparse Partial Least Squares
@@ -32,14 +29,14 @@ NULL
 #'
 #' @param X a matrix or list of matrices indicating the explanatory variable(s). This parameter is required.
 #' @param Y a matrix or list of matrices indicating objective variable(s). This is optional. If there is no input for Y, then PCA is implemented.
-#' @param Z a vector, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.
+#' @param Z a vector or matrix, response variable(s) for implementing the supervised version of (multiblock) PCA or PLS. This is optional. The (row) length of Z is the number of subjects. If there is no input for Z, then unsupervised PLS/PCA is implemented.
 #' @param comp numeric scalar for the maximum number of componets to be considered.
 #' @param lambdaX numeric vector of regularized parameters for X, with a length equal to the number of blocks. If lambdaX is omitted, no regularization is conducted.
 #' @param lambdaY numeric vector of regularized parameters for Y, with a length equal to the number of blocks. If lambdaY is omitted, no regularization is conducted.
 #' @param lambdaXsup numeric vector of regularized parameters for the super weight of X with length equal to the number of blocks. If omitted, no regularization is conducted.
 #' @param lambdaYsup numeric vector of regularized parameters for the super weight of Y with length equal to the number of blocks. If omitted, no regularization is conducted.
-#' @param eta numeric scalar indicating the parameter indexing the penalty family. This version contains only choice 1.
-#' @param type a character, indicating the penalty family. In this version, only one choice is available: "lasso."
+#' @param eta numeric scalar indicating the parameter indexing the penalty family that can be set with the argument type. 
+#' @param type a character, indicating the penalty family. In this version, the following choices are available: "lasso", "hard", "scad" and "mcp."
 #' @param inX a vector or list of numeric vectors specifying the variables in X, always included in the model
 #' @param inY a vector or list of numeric vectors specifying the variables in Y, always included in the model
 #' @param inXsup a (list of) numeric vector to specify the blocks of X which are always in the model. 
@@ -52,6 +49,9 @@ NULL
 #' @param intseed seed number for the random number in the parameter estimation algorithm.
 #' @param x an object of class "\code{msma}", usually, a result of a call to \code{\link{msma}}
 #' @param ceps a numeric scalar for the convergence condition of the algorithm
+#' @param sprmethod a character, 
+#' @param nneg a character 
+#' @param con4spv a numeric vector
 #' @param ... further arguments passed to or from other methods.
 #' @return \item{dmode}{Which modes "PLS" or "PCA"}
 #' @return \item{X}{Scaled X which has a list form.}
@@ -102,7 +102,44 @@ msma = function(X, ...) UseMethod("msma")
 #' @rdname msma
 #' @method msma default
 #' @export
-msma.default = function(X, Y=NULL, Z=NULL, comp=2, lambdaX=NULL, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, defmethod = "canonical", scaling = TRUE, verbose=FALSE, intseed=1, ceps=0.0001, ...)
+# Backward-compatible dispatcher for msma 3.2.
+# The exact version 3.1 engine is used unless a version 3.2 feature is requested.
+msma.default = function(X, Y=NULL, Z=NULL, comp=2, lambdaX=NULL, lambdaY=NULL,
+  lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL,
+  inXsup=NULL, inYsup=NULL, muX=0, muY=0, defmethod="canonical",
+  scaling=TRUE, verbose=FALSE, intseed=1, ceps=0.0001,
+  sprmethod=c("PCA", "NMF", "sNMF", "CMP")[1],
+  nneg=c("posneg", "absolute", "min")[1], con4spv=NULL, ...)
+{
+  z_is_matrix = !is.null(Z) && !is.null(dim(Z))
+  z_ncol = if(z_is_matrix) ncol(as.matrix(Z)) else if(is.null(Z)) 0L else 1L
+  z_is_multivariate = z_ncol > 1L
+  use_extended = !identical(sprmethod, "PCA") || z_is_multivariate || !is.null(con4spv)
+
+  if(!use_extended){
+    # A one-column matrix is a version 3.2 input convenience, but its
+    # numerical behavior and returned object must agree with vector-valued Z.
+    Z_legacy = if(z_is_matrix && z_ncol == 1L) drop(Z) else Z
+    return(.msma_default_legacy(
+      X=X, Y=Y, Z=Z_legacy, comp=comp, lambdaX=lambdaX, lambdaY=lambdaY,
+      lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta=eta, type=type,
+      inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX=muX, muY=muY,
+      defmethod=defmethod, scaling=scaling, verbose=verbose,
+      intseed=intseed, ceps=ceps, ...
+    ))
+  }
+
+  .msma_default_extended(
+    X=X, Y=Y, Z=Z, comp=comp, lambdaX=lambdaX, lambdaY=lambdaY,
+    lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta=eta, type=type,
+    inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX=muX, muY=muY,
+    defmethod=defmethod, scaling=scaling, verbose=verbose,
+    intseed=intseed, ceps=ceps, sprmethod=sprmethod, nneg=nneg,
+    con4spv=con4spv, ...
+  )
+}
+
+.msma_default_legacy = function(X, Y=NULL, Z=NULL, comp=2, lambdaX=NULL, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, defmethod = "canonical", scaling = TRUE, verbose=FALSE, intseed=1, ceps=0.0001, ...)
 {
 # number of nested componets
 comp2 = ifelse(length(comp)<2, 1, comp[2])
@@ -187,7 +224,7 @@ out2 = lapply(1:comp, function(x) lapply(1:comp2, function(y) NULL))
 for(ncomp in 1:comp){
 
 ##### Fit #####
-out[[ncomp]] = out1 = msma_OneComp(Xd, Yd, Z, lambdaX, lambdaY, lambdaXsup, lambdaYsup, eta, type, inX, inY, inXsup, inYsup, muX, muY, dmode, verbose, intseed, ceps)
+out[[ncomp]] = out1 = .msma_onecomp_legacy(Xd, Yd, Z, lambdaX, lambdaY, lambdaXsup, lambdaYsup, eta, type, inX, inY, inXsup, inYsup, muX, muY, dmode, verbose, intseed, ceps)
 
 ##### Nest #####
 sbXd = sbX0 = list(do.call(cbind, out1$sbX))
@@ -200,7 +237,7 @@ out21 = out1
 out21$wbX[[1]] = out1$wsX; out21$wbY[[1]] = out1$wsY
 out2[[ncomp]][[ncomp2]] = out21
 }else{
-out2[[ncomp]][[ncomp2]] = out21 = msma_OneComp(sbXd, sbYd, Z, lambdaXsup, lambdaYsup, NULL, NULL, eta, type, inXsup, inYsup, NULL, NULL, muX, muY, dmode, verbose, intseed, ceps)
+out2[[ncomp]][[ncomp2]] = out21 = .msma_onecomp_legacy(sbXd, sbYd, Z, lambdaXsup, lambdaYsup, NULL, NULL, eta, type, inXsup, inYsup, NULL, NULL, muX, muY, dmode, verbose, intseed, ceps)
 }
 
 # arrange 
@@ -391,6 +428,343 @@ class(out) = "msma"
 out
 }
 
+.msma_default_extended = function(X, Y=NULL, Z=NULL, comp=2, lambdaX=NULL, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, defmethod = "canonical", scaling = TRUE, verbose=FALSE, intseed=1, ceps=0.0001, sprmethod=c("PCA", "NMF", "sNMF", "CMP")[1], nneg = c("posneg", "absolute", "min")[1], con4spv=NULL,...)
+{
+# number of nested componets
+comp2 = ifelse(length(comp)<2, 1, comp[2])
+comp = comp[1]
+
+##### Requirement #####
+if(missing(X)) stop("X should be specified")
+if(is.null(Y)){ 
+dmode = "PCA"
+Y = X
+if(!is.null(lambdaY)) stop("lambdaY can not be specified")
+}else
+{
+dmode = "PLS"
+}
+
+if(!inherits(X, "list")) X = list(X)
+if(!inherits(Y, "list")) Y = list(Y)
+
+if(!inherits(X, "list")) stop("X should be a list")
+if(!inherits(Y, "list")) stop("Y should be a list")
+
+Ynb = length(Y)
+Xnb = length(X)
+
+Ybnames = names(Y)
+Xbnames = names(X)
+
+if(is.null(Ybnames)){Ybnames = paste("block", 1:Ynb, sep="")}
+if(is.null(Xbnames)){Xbnames = paste("block", 1:Xnb, sep="")}
+
+if(length(lambdaX) == 1) lambdaX = rep(lambdaX, Xnb)
+if(length(lambdaY) == 1) lambdaY = rep(lambdaY, Ynb)
+
+if(!is.null(lambdaX)){if(length(lambdaX) != Xnb) stop("lambdaX should be same length as the number of blocks of X")}
+if(!is.null(lambdaY)){if(length(lambdaY) != Ynb) stop("lambdaY should be same length as the number of blocks of Y")}
+
+if(!is.null(inX)){if(!inherits(inX, "list")) inX = list(inX)}
+if(!is.null(inY)){if(!inherits(inY, "list")) inY = list(inY)}
+
+Yps = unlist(lapply(Y, ncol))
+Xps = unlist(lapply(X, ncol))
+
+Yns = unlist(lapply(Y, nrow))
+Xns = unlist(lapply(X, nrow))
+
+if(length(unique(Yns)) == 1){Yns = unique(Yns)}else{stop("numbers of rows should be same among Y")}
+if(length(unique(Xns)) == 1){Xns = unique(Xns)}else{stop("numbers of rows should be same among X")}
+if(Yns == Xns){n = Xns}else{stop("numbers of rows should be same between X and Y")}
+if(!is.null(Z)){ 
+Z = cbind(Z)
+if(nrow(Z) != n) stop("length of Z should be same as row of X or Y")
+}
+
+if(!is.null(inX)){
+extest = unlist(lapply(1:Xnb, function(a) inX[[a]] %in% (1:Xps[a]) ))
+if(!(all(extest))) stop("inX should be specified the column number of X")
+}
+if(!is.null(inY)){
+extest = unlist(lapply(1:Ynb, function(a) inY[[a]] %in% (1:Yps[a]) ))
+if(!(all(extest))) stop("inY should be specified the column number of Y")
+}
+
+if(muX < 0) stop("muX should be positive")
+if(muY < 0) stop("muY should be positive")
+
+########## Start ##########
+X = lapply(X, function(x) scale(x, scale=scaling))
+Y = lapply(Y, function(x) scale(x, scale=scaling))
+if(!is.null(Z)) Z = scale(Z, scale=scaling)
+
+Xscale = lapply(X, attributes)
+Yscale = lapply(Y, attributes)
+
+if(scaling){
+for(x in 1:length(Xscale)) Xscale[[x]]$`scaled:scale` = ifelse(Xscale[[x]]$`scaled:scale`==0, 1, Xscale[[x]]$`scaled:scale`)
+for(x in 1:length(Yscale)) Yscale[[x]]$`scaled:scale` = ifelse(Yscale[[x]]$`scaled:scale`==0, 1, Yscale[[x]]$`scaled:scale`)
+}
+
+X = lapply(X, function(x) apply(x, 2, function(x2){x2[is.na(x2)] = 0; x2}))
+Y = lapply(Y, function(y) apply(y, 2, function(y2){y2[is.na(y2)] = 0; y2}))
+
+tvarX = lapply(X, function(x) sum(x^2))
+tvarY = lapply(Y, function(x) sum(x^2))
+
+############### Iteration for components Start ###############
+Xd = X; Yd = Y; out = ssX = ssY = wsX = wsY = cpevX = cpevY = predictiv = list(); bic = bicX = bicY = reproduct = rep(0, comp)
+bic2 = bic2X = bic2Y = lapply(1:comp, function(x) {tb=rep(0, comp2); names(tb)=paste0("comp", 1:comp2); tb})
+out2 = lapply(1:comp, function(x) lapply(1:comp2, function(y) NULL))
+
+for(ncomp in 1:comp){
+
+##### Fit #####
+out[[ncomp]] = out1 = .msma_onecomp_extended(Xd, Yd, Z, lambdaX, lambdaY, lambdaXsup, lambdaYsup, eta, type, inX, inY, inXsup, inYsup, muX, muY, dmode, verbose, intseed, ceps, con4spv)
+
+##### Nest #####
+sbXd = sbX0 = list(do.call(cbind, out1$sbX))
+sbYd = sbY0 = list(do.call(cbind, out1$sbY))
+
+if(sprmethod=="PCA"){
+
+for(ncomp2 in 1:comp2){
+
+if(ncomp2 == 1){
+out21 = out1
+out21$wbX[[1]] = out1$wsX; out21$wbY[[1]] = out1$wsY
+out2[[ncomp]][[ncomp2]] = out21
+}else{
+out2[[ncomp]][[ncomp2]] = out21 = .msma_onecomp_extended(sbXd, sbYd, Z, lambdaXsup, lambdaYsup, NULL, NULL, eta, type, inXsup, inYsup, NULL, NULL, muX, muY, dmode, verbose, intseed, ceps, con4spv)
+}
+
+# arrange 
+ssX = do.call(cbind, lapply(out2[[ncomp]], function(y) y$ssX))
+ssY = do.call(cbind, lapply(out2[[ncomp]], function(y) y$ssY))
+
+# Prediction 
+predSX = ssX %*% project(sbX0[[1]], ssX)
+predSY = ssY %*% project(sbY0[[1]], ssY)
+
+# Deflation
+sbXd = lapply(sbX0, function(x) x - predSX)
+sbYd = lapply(sbY0, function(x) x - predSY)
+
+# arrange 
+wsX = lapply(out2[1:ncomp], function(x) do.call(cbind, lapply(x, function(y) y$wbX[[1]])))
+wsY = lapply(out2[1:ncomp], function(x) do.call(cbind, lapply(x, function(y) y$wbY[[1]])))
+
+nzwsX = lapply(wsX, function(x) apply(x, 2, function(z2) sum(z2!=0)) )
+nzwsY = lapply(wsY, function(x) apply(x, 2, function(z2) sum(z2!=0)) )
+
+# Information Criteria 
+if(dmode == "PCA"){ 
+tmpse = sum(unlist(lapply(sbXd, function(x) sum(x^2))))
+#print(tmpse)
+bic2[[ncomp]][ncomp2] = log(tmpse/(n*Xnb)) + log(n*Xnb)/(n*Xnb)*(sum(unlist(nzwsX)))
+}else
+{
+tmpse = sum(unlist(lapply(sbYd, function(x) sum(x^2))))
+bic2Y[[ncomp]][ncomp2] = log(tmpse/(n*Ynb)) + log(n*Ynb)/(n*Ynb)*(sum(unlist(nzwsY)))
+tmpse = sum(unlist(lapply(sbXd, function(x) sum(x^2))))
+bic2X[[ncomp]][ncomp2] = log(tmpse/(n*Xnb)) + log(n*Xnb)/(n*Xnb)*(sum(unlist(nzwsX)))
+}
+}
+
+}else if(sprmethod%in%c("NMF","sNMF")){
+
+V0 = sbXd[[1]]
+if(nneg == "posneg"){ V1 = do.call(cbind, lapply(c(1, -1), function(s1) apply(V0, 2, function(v){ ifelse(sign(v)==s1, v*s1, 0) }))) 
+}else if(nneg == "absolute"){ V1 = abs(V0)
+}else if(nneg == "min"){ V1 = apply(V0, 2, function(v){ x=v-min(v); x/max(x)}) }
+
+if(sprmethod=="NMF"){
+NMFout = sprNMF(V1, comp2, seed=intseed)
+}else{
+NMFout = sprNMF(V1, comp2, lambdaXsup, seed=intseed)
+}
+ssX[[ncomp]] = ssY[[ncomp]] = NMFout$Basis
+wsX[[ncomp]] = wsY[[ncomp]] = t(NMFout$Encoding)
+
+nzwsX = lapply(wsX, function(x) apply(x, 2, function(z2) sum(z2!=0)) )
+nzwsY = lapply(wsY, function(x) apply(x, 2, function(z2) sum(z2!=0)) )
+
+for(ncomp2 in 1:comp2){
+predSX = ssX[[ncomp]][,1:ncomp2,drop=FALSE] %*% project(V0, ssX[[ncomp]][,1:ncomp2,drop=FALSE])
+sbXd = lapply(sbX0, function(x) x - predSX)
+tmpse = sum(unlist(lapply(sbXd, function(x) sum(x^2))))
+bic2[[ncomp]][ncomp2] = log(tmpse/(n*Xnb)) + log(n*Xnb)/(n*Xnb)*(sum(unlist(nzwsX)[1:ncomp2]))
+}
+
+}
+
+
+##### arrange #####
+sbX = lapply(1:Xnb, function(x){ do.call(cbind, lapply(out, function(y) y$sbX[[x]]))})
+sbY = lapply(1:Ynb, function(x){ do.call(cbind, lapply(out, function(y) y$sbY[[x]]))})
+
+wbX = lapply(1:Xnb, function(x){ 
+tmp = do.call(cbind, lapply(out, function(y) y$wbX[[x]]))
+colnames(tmp) = paste("comp", 1:ncol(tmp), sep="")
+if(is.null(colnames(X[[x]]))){rownames(tmp) = paste("X", x, 1:ncol(X[[x]]), sep=".")}else{rownames(tmp) = colnames(X[[x]])}
+tmp
+})
+names(sbX) = names(wbX) = Xbnames
+
+wbY = lapply(1:Ynb, function(x){ 
+tmp = do.call(cbind, lapply(out, function(y) y$wbY[[x]]))
+colnames(tmp) = paste("comp", 1:ncol(tmp), sep="")
+if(is.null(colnames(Y[[x]]))){rownames(tmp) = paste("Y", x, 1:ncol(Y[[x]]), sep=".")}else{rownames(tmp) = colnames(Y[[x]])}
+tmp
+})
+names(sbY) = names(wbY) = Ybnames
+
+##### Number of nonzero #####
+nzwbX = do.call(rbind, lapply(wbX, function(z) apply(z, 2, function(z2) sum(z2!=0))))
+nzwbY = do.call(rbind, lapply(wbY, function(z) apply(z, 2, function(z2) sum(z2!=0))))
+
+##### Prediction #####
+predX = lapply(1:Xnb, function(x) sbX[[x]] %*% project(X[[x]], sbX[[x]]))
+predY = lapply(1:Ynb, function(x) sbY[[x]] %*% project(Y[[x]], sbY[[x]]))
+
+cpevX[[ncomp]] = sapply(1:Xnb, function(x) sum(predX[[x]]^2)/tvarX[[x]] )
+cpevY[[ncomp]] = sapply(1:Ynb, function(x) sum(predY[[x]]^2)/tvarY[[x]] )
+
+##### Deflation #####
+if(defmethod == "canonical"){
+Xd = lapply(1:Xnb, function(x) X[[x]] - predX[[x]])
+Yd = lapply(1:Ynb, function(x) Y[[x]] - predY[[x]])
+}else
+if(defmethod == "canonical2"){
+Xd = lapply(1:Xnb, function(x) Xd[[x]] - predX[[x]])
+Yd = lapply(1:Ynb, function(x) Yd[[x]] - predY[[x]])
+}else
+if(defmethod == "pls"){
+Xd = lapply(1:Xnb, function(x) X[[x]] - predX[[x]])
+Yd = lapply(1:Ynb, function(x) Y[[x]] - predY[[x]])
+}
+
+##### Predictivity and Reproductivity #####
+reproduct[ncomp] = cor(unlist(lapply(Y, c)), unlist(lapply(predY, c)))^2
+predictiv[[ncomp]] = cor(out1$ssY, Z)^2
+
+##### Information Criteria #####
+if(dmode == "PCA"){ 
+tmpse = sum(unlist(lapply(Xd, function(x) sum(x^2))))
+#print(tmpse)
+bic[ncomp] = log(tmpse/(n*sum(Xps))) + log(n*sum(Xps))/(n*sum(Xps))*(sum(nzwbX))
+}else
+{
+#tmpse = sum(unlist(lapply(Xd, function(x) sum(x^2)))) + sum(unlist(lapply(Yd, function(x) sum(x^2))))
+tmpse = sum(unlist(lapply(Yd, function(x) sum(x^2))))
+bicY[ncomp] = log(tmpse/(n*sum(Yps))) + log(n*sum(Yps))/(n*sum(Yps))*(sum(nzwbY))
+#bic[ncomp] = log(tmpse/(n*sum(c(Xps,Yps)))) + log(n*sum(c(Xps,Yps)))/(n*sum(c(Xps,Yps)))*(sum(c(nzwbX,nzwbY)))
+tmpse = sum(unlist(lapply(Xd, function(x) sum(x^2))))
+bicX[ncomp] = log(tmpse/(n*sum(Xps))) + log(n*sum(Xps))/(n*sum(Xps))*(sum(nzwbX))
+}
+
+}
+############### Iteration for components End ###############
+
+##### arrange #####
+if(sprmethod=="PCA"){
+ssX = lapply(out2, function(x) do.call(cbind, lapply(x, function(y) y$ssX)))
+ssY = lapply(out2, function(x) do.call(cbind, lapply(x, function(y) y$ssY)))
+}
+
+names(ssY) = names(ssX) = paste("comp", 1:comp, sep="")
+for(i in 1:length(wsY)){ colnames(ssY[[i]]) = paste("comp", 1:comp2, sep="") }
+for(i in 1:length(wsX)){ colnames(ssX[[i]]) = paste("comp", 1:comp2, sep="") }
+
+cpevX = do.call(cbind, cpevX)
+cpevY = do.call(cbind, cpevY)
+
+if(ncomp==1){
+avX = cpevX; avY = cpevY
+}else
+if(ncomp==2){
+avX = cbind(cpevX[,1], cpevX[,2]-cpevX[,1])
+avY = cbind(cpevY[,1], cpevY[,2]-cpevY[,1])
+}else{
+avX = cbind(cpevX[,1], t(apply(cpevX, 1, diff)))
+avY = cbind(cpevY[,1], t(apply(cpevY, 1, diff)))
+}
+colnames(cpevY) = colnames(cpevX) = colnames(avY) = colnames(avX) = colnames(nzwbX) = colnames(nzwbY) = paste("comp", 1:comp, sep="")
+rownames(cpevX) = rownames(avX) = rownames(nzwbX) = Xbnames
+rownames(cpevY) = rownames(avY) = rownames(nzwbY) = Ybnames
+
+names(wsY) = names(wsX) = paste("comp", 1:comp, sep="")
+for(i in 1:length(wsY)){ 
+colnames(wsY[[i]]) = paste("comp", 1:comp2, sep="")
+if(sprmethod%in%c("NMF","sNMF") & nneg == "posneg"){
+rownames(wsY[[i]]) = paste(Ybnames, rep(c("pos", "neg"),each=Ynb), sep="")
+}else{
+rownames(wsY[[i]]) = Ybnames
+}
+}
+for(i in 1:length(wsX)){ 
+colnames(wsX[[i]]) = paste("comp", 1:comp2, sep="")
+if(sprmethod%in%c("NMF","sNMF") & nneg == "posneg"){
+rownames(wsX[[i]]) = paste(Xbnames, rep(c("pos", "neg"),each=Xnb), sep="")
+}else{
+rownames(wsX[[i]]) = Xbnames
+}
+}
+
+names(nzwsX) = names(nzwsY) = paste("comp", 1:comp, sep="")
+for(i in 1:length(nzwsX)) names(nzwsX[[i]]) = paste("comp", i, "-", 1:comp2, sep="") 
+for(i in 1:length(nzwsY)) names(nzwsY[[i]]) = paste("comp", i, "-", 1:comp2, sep="") 
+
+names(bic) = names(bicX) = names(bicY) = names(bic2) = paste("comp", 1:comp, sep="")
+if(comp2 == 1) bic2 = unlist(bic2)
+
+##### Names of variables #####
+selectXnames = lapply(1:length(wbX), function(z) apply(wbX[[z]], 2, function(z2){ 
+if(is.null(colnames(X[[z]]))) colnames(X[[z]]) = paste("X", z, 1:ncol(X[[z]]), sep=".")
+colnames(X[[z]])[z2!=0]
+}))
+selectYnames = lapply(1:length(wbY), function(z) apply(wbY[[z]], 2, function(z2){ 
+if(is.null(colnames(Y[[z]]))) colnames(Y[[z]]) = paste("Y", z, 1:ncol(Y[[z]]), sep=".")
+colnames(Y[[z]])[z2!=0]
+}))
+
+##### Output #####
+if(dmode == "PCA"){ 
+out = list(call = match.call(), 
+dmode=dmode,
+X=X, Z=Z, Xscale=Xscale, comp = c(comp, comp2),
+muX=muX, 
+wbX=wbX, sbX=sbX, ssX=ssX, wsX=wsX,
+nzwbX = nzwbX, nzwsX=nzwsX,
+selectXnames = selectXnames,
+cpevX = cpevX,
+avX = avX,
+bic = bic, bic2=bic2,
+reproduct = reproduct, predictiv=predictiv
+)
+}else
+{
+out = list(call = match.call(), 
+dmode=dmode,
+X=X, Y=Y, Z=Z,
+Xscale=Xscale, Yscale=Yscale, comp = c(comp, comp2),
+muX=muX, muY=muY,
+wbX=wbX, sbX=sbX, wbY=wbY, sbY=sbY, ssX=ssX, wsX=wsX, ssY=ssY, wsY=wsY, 
+nzwbX = nzwbX, nzwbY = nzwbY, nzwsX=nzwsX, nzwsY=nzwsY,
+selectXnames = selectXnames, selectYnames = selectYnames,
+cpevX = cpevX, cpevY = cpevY,
+avX = avX, avY = avY,
+bic = bicY, bicX = bicX, bicY = bicY,
+bic2 = bic2Y, bic2X = bic2X, bic2Y = bic2Y,
+reproduct = reproduct, predictiv=predictiv
+)
+}
+class(out) = "msma"
+out
+}
+
 #' @rdname msma
 #' @method print msma
 #' @export
@@ -403,7 +777,7 @@ cat("Numbers of non-zeros for X block: \n")
 print(x$nzwbX)
 cat("\n")
 cat("Numbers of non-zeros for X super: \n")
-if(x$comp[2] == 1){ nzwsX = do.call(cbind,x$nzwsX) }else{ nzwsX = x$nzwsX }
+nzwsX = do.call(cbind,x$nzwsX)
 print(nzwsX)
 cat("\n")
 if(x$dmode == "PLS"){
@@ -411,7 +785,7 @@ cat("Numbers of non-zeros for Y block: \n")
 print(x$nzwbY)
 cat("\n")
 cat("Numbers of non-zeros for Y super: \n")
-if(x$comp[2] == 1){ nzwsY = do.call(cbind,x$nzwsY) }else{ nzwsY = x$nzwsY }
+nzwsY = do.call(cbind,x$nzwsY)
 print(nzwsY)
 cat("\n")
 }
@@ -683,6 +1057,9 @@ list(X = predX, sbX = sbX, Y = predY, sbY = sbY)
 #' @param nfold number of folds - default is 5. 
 #' @param seed number of seed for the random number. 
 #' @param intseed seed number for the random number in the parameter estimation algorithm.
+#' @param sprmethod a character specifying the super-level decomposition method: PCA, NMF, sNMF, or CMP.
+#' @param nneg a character specifying the non-negative transformation: posneg, absolute, or min.
+#' @param con4spv a numeric vector of weights used to combine multiple columns of Z. If NULL, equal weights are used.
 #' 
 #' @return \item{err}{The mean cross-validated errors which has three elements consisting of the mean of errors for X and Y, the errors for X and for Y.}
 #'
@@ -699,7 +1076,7 @@ list(X = predX, sbX = sbX, Y = predY, sbY = sbY)
 #'cv2 = cvmsma(X, Y, comp = 2, lambdaX=2, lambdaY=1:3, nfold=5, seed=1)
 #'cv2
 #'
-cvmsma = function(X, Y=NULL, Z=NULL, comp=1, lambdaX, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, nfold=5, seed=1, intseed=1){
+cvmsma = function(X, Y=NULL, Z=NULL, comp=1, lambdaX, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, nfold=5, seed=1, intseed=1, sprmethod=c("PCA", "NMF", "sNMF", "CMP")[1], nneg = c("posneg", "absolute", "min")[1], con4spv=NULL){
 ##### Requirement #####
 if(missing(X)) stop("X should be specified")
 if(is.null(Y)){ 
@@ -764,11 +1141,11 @@ if(is.null(Z)){
 tmpZ = testZ = NULL
 }else{
 if(!inherits(Z, "matrix")) dim(Z) = c(length(Z),1)
-tmpZ = Z[!(fold == i),]
-testZ = Z[(fold == i),]
+tmpZ = Z[!(fold == i),,drop=FALSE]
+testZ = Z[(fold == i),,drop=FALSE]
 }
 
-fit = msma(tmpX, tmpY, tmpZ, comp, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta, type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed)
+fit = msma(tmpX, tmpY, tmpZ, comp, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta, type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed, sprmethod=sprmethod, nneg=nneg, con4spv=con4spv)
 test = predict(fit, newX=testX, newY=testY)
 
 #testX = lapply(1:length(testX), function(x) scale(testX[[x]], center=fit$Xscale[[x]]$`scaled:center`, scale=fit$Xscale[[x]]$`scaled:scale`))
@@ -836,6 +1213,8 @@ list(err = err)
 #' @param criterion a character, the evaluation criterion, "CV" for cross-validation, based on a matrix element-wise error, and "BIC" for Bayesian information criteria. The "BIC" is the default.
 #' @param whichselect which blocks selected.
 #' @param intseed seed number for the random number in the parameter estimation algorithm.
+#' @param sprmethod a character specifying the super-level decomposition method: PCA, NMF, sNMF, or CMP.
+#' @param nneg a character specifying the non-negative transformation: posneg, absolute, or min.
 #' @param cidx Parameters used in the plot function to specify whether block or super is used. 1=block (default), 2=super.
 #' @param ... further arguments passed to or from other methods.
 #' 
@@ -853,7 +1232,7 @@ list(err = err)
 #' ncomp1 = ncompsearch(X, Y, comps = c(1, 5, 10*(1:2)), nfold=5)
 #' #plot(ncomp1)
 #'
-ncompsearch = function(X, Y=NULL, Z=NULL, comps=1:3, lambdaX=NULL, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, nfold=5, regpara=FALSE, maxrep=3, minpct=0, maxpct=1, criterion=c("CV", "BIC")[1], whichselect=NULL, intseed=1){
+ncompsearch = function(X, Y=NULL, Z=NULL, comps=1:3, lambdaX=NULL, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, nfold=5, regpara=FALSE, maxrep=3, minpct=0, maxpct=1, criterion=c("CV", "BIC")[1], whichselect=NULL, intseed=1, sprmethod=c("PCA", "NMF", "sNMF", "CMP")[1], nneg = c("posneg", "absolute", "min")[1]){
 
 if(!inherits(comps, "list")){ comps = list(comps)}
 if(length(comps)<2) comps[[2]] = 1
@@ -862,20 +1241,20 @@ comps2 = expand.grid(comps)
 
 if(criterion=="BIC" & !regpara){
 ncomps = unlist(lapply(comps, max))
-msmaout = msma(X, Y, Z, comp = ncomps, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta=eta, type=type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed)
+msmaout = msma(X, Y, Z, comp = ncomps, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta=eta, type=type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed, sprmethod=sprmethod, nneg=nneg)
 cves = msmaout[c("bic","bic2")]
 comps = lapply(ncomps, function(nc) 1:nc)
 }else{
 cv2 = apply(comps2, 1, function(x) {
 if(regpara){
-regpout = regparasearch(X, Y, Z, eta=eta, type=type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, comp=x, nfold=nfold, maxrep=maxrep, minpct=minpct, maxpct=maxpct, criterion=criterion, whichselect=whichselect, intseed=intseed)
-cve = regpout$mincriterion; lambdaX = regpout$optlambdaX; lambdaY = regpout$optlambdaY; lambdaXsup = regpout$optlambdaXsup; lambdaY = regpout$optlambdaYsup
+regpout = regparasearch(X, Y, Z, eta=eta, type=type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, comp=x, nfold=nfold, maxrep=maxrep, minpct=minpct, maxpct=maxpct, criterion=criterion, whichselect=whichselect, intseed=intseed, sprmethod=sprmethod, nneg=nneg)
+cve = regpout$mincriterion; lambdaX = regpout$optlambdaX; lambdaY = regpout$optlambdaY; lambdaXsup = regpout$optlambdaXsup; lambdaYsup = regpout$optlambdaYsup
 }else
 {
 if(criterion=="CV"){
-cve = cvmsma(X, Y, Z, comp=x, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta=eta, type=type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, nfold=nfold, intseed=intseed)$err[1]
+cve = cvmsma(X, Y, Z, comp=x, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta=eta, type=type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, nfold=nfold, intseed=intseed, sprmethod=sprmethod, nneg=nneg)$err[1]
 }else if(criterion=="BIC"){
-msmaout = msma(X, Y, Z, comp=x, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta=eta, type=type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed)
+msmaout = msma(X, Y, Z, comp=x, lambdaX=lambdaX, lambdaY=lambdaY, lambdaXsup=lambdaXsup, lambdaYsup=lambdaYsup, eta=eta, type=type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed, sprmethod=sprmethod, nneg=nneg)
 cve = unlist(lapply(msmaout[c("bic","bic2")], function(bic) bic[length(bic)]))
 }
 }
@@ -910,6 +1289,7 @@ out
 
 #' @rdname ncompsearch
 #' @method print ncompsearch
+#' @export
 print.ncompsearch = function(x, ...)
 {
 cat("Optimal number of components: ")
@@ -967,6 +1347,8 @@ abline(v=x$optncomp[cidx], lty=2, col=2)
 #' @param homo same parameters.
 #' @param x an object of class "\code{regparasearch}", usually, a result of a call to \code{\link{regparasearch}}
 #' @param intseed seed number for the random number in the parameter estimation algorithm.
+#' @param sprmethod a character specifying the super-level decomposition method: PCA, NMF, sNMF, or CMP.
+#' @param nneg a character specifying the non-negative transformation: posneg, absolute, or min.
 #' @param ... further arguments passed to or from other methods.
 #' 
 #' @return \item{optlambdaX}{Optimal parameters for X}
@@ -989,7 +1371,7 @@ abline(v=x$optncomp[cidx], lty=2, col=2)
 #' fit4
 #' summary(fit4)
 #'
-regparasearch = function(X, Y=NULL, Z=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, comp=1, nfold=5, maxrep=3, minpct=0, maxpct=1, criterion=c("CV", "BIC")[1], whichselect=NULL, homo=NULL, intseed=1){
+regparasearch = function(X, Y=NULL, Z=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, comp=1, nfold=5, maxrep=3, minpct=0, maxpct=1, criterion=c("CV", "BIC")[1], whichselect=NULL, homo=NULL, intseed=1, sprmethod=c("PCA", "NMF", "sNMF", "CMP")[1], nneg = c("posneg", "absolute", "min")[1]){
 ##### Requirement #####
 if(missing(X)) stop("X should be specified")
 if(minpct>=1 | minpct<0) stop("minpct should be 0 <= minpct < 1")
@@ -999,7 +1381,7 @@ abnames = c("X", "Y", "Xsup", "Ysup")
 if(length(comp)<2) comp[2] = 1
 
 ##### Candidates for Regularized Parameters #####
-intfit = msma(X, Y, Z, comp=1, lambdaX=rep(NULL, length(X)), lambdaY=rep(NULL, length(Y)), lambdaXsup=NULL, lambdaYsup=NULL, eta, type, inX, inY, inXsup=NULL, inYsup=NULL, muX = muX, muY = muY, intseed=intseed)
+intfit = msma(X, Y, Z, comp=1, lambdaX=rep(NULL, length(X)), lambdaY=rep(NULL, length(Y)), lambdaXsup=NULL, lambdaYsup=NULL, eta, type, inX, inY, inXsup=NULL, inYsup=NULL, muX = muX, muY = muY, intseed=intseed, sprmethod=sprmethod, nneg=nneg)
 
 intweight = list(X=intfit$wbX, Y=intfit$wbY, Xsup=intfit$wsX, Ysup=intfit$wsY)
 if(!is.null(homo)){ 
@@ -1044,9 +1426,9 @@ cv3 = apply(cands, 2, function(x){
 lambdas = lapply(abnames, function(y){z=colidx[[y]]; if(is.null(z)){NULL}else{x[z]}})
 names(lambdas) = abnames
 if(criterion=="CV"){
-cvmsma(X, Y, Z, comp = comp, lambdaX=lambdas$X, lambdaY=lambdas$Y, lambdaXsup=lambdas$Xsup, lambdaYsup=lambdas$Ysup, eta, type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, nfold=nfold, intseed=intseed)$err[1]
+cvmsma(X, Y, Z, comp = comp, lambdaX=lambdas$X, lambdaY=lambdas$Y, lambdaXsup=lambdas$Xsup, lambdaYsup=lambdas$Ysup, eta, type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, nfold=nfold, intseed=intseed, sprmethod=sprmethod, nneg=nneg)$err[1]
 }else if(criterion=="BIC"){
-msma(X, Y, Z, comp = comp, lambdaX=lambdas$X, lambdaY=lambdas$Y, lambdaXsup=lambdas$Xsup, lambdaYsup=lambdas$Ysup, eta, type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed)$bic[comp[1]]
+msma(X, Y, Z, comp = comp, lambdaX=lambdas$X, lambdaY=lambdas$Y, lambdaXsup=lambdas$Xsup, lambdaYsup=lambdas$Ysup, eta, type, inX=inX, inY=inY, inXsup=inXsup, inYsup=inYsup, muX = muX, muY = muY, intseed=intseed, sprmethod=sprmethod, nneg=nneg)$bic[comp[1]]
 }
 })
 
@@ -1080,6 +1462,7 @@ out
 
 #' @rdname regparasearch
 #' @method print regparasearch
+#' @export
 print.regparasearch = function(x, ...)
 {
 abnames = c("X", "Y", "Xsup", "Ysup")
@@ -1200,6 +1583,7 @@ params
 
 #' @rdname optparasearch
 #' @method print optparasearch
+#' @export
 print.optparasearch = function(x, ...)
 {
 cat("Search method: ")
@@ -1241,7 +1625,7 @@ cat("\n")
 #'
 #' @rdname msma-internal
 #' @keywords internal
-msma_OneComp = function(X, Y, Z=NULL, lambdaX=NULL, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, dmode = "PLS", verbose=FALSE, intseed=1, ceps=0.0001){
+.msma_onecomp_legacy = function(X, Y, Z=NULL, lambdaX=NULL, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, dmode = "PLS", verbose=FALSE, intseed=1, ceps=0.0001){
 
 Ynb = length(Y); Xnb = length(X)
 
@@ -1287,6 +1671,76 @@ sbY2 = do.call(cbind, sbY)
 ### Yside (super) ###
 #wsY = normvec(t(sbY2) %*% (muXY * ssX + muY * Z))
 argvsups = t(sbY2) %*% (muXY * ssX + muY * Z)
+wsY = normvec(sparse(normvec(argvsups), lambdaYsup, eta, type, inYsup))
+ssY = sbY2 %*% wsY
+
+### Convergence ###
+if(itr > 2){
+#dif = drop(crossprod(ssX - oldssX))
+difX = drop(crossprod(ssX - oldssX))
+difY = drop(crossprod(ssY - oldssY))
+dif = max(difX, difY)
+if(verbose) print(c(itr, dif))
+if(dif < ceps | itr > 20){break}
+}
+oldssX = ssX
+oldssY = ssY
+itr = itr + 1
+}
+
+### Output ###
+list(wbX=wbX, sbX=sbX, wbY=wbY, sbY=sbY, ssX=ssX, wsX=wsX, ssY=ssY, wsY=wsY)
+}
+
+.msma_onecomp_extended = function(X, Y, Z=NULL, lambdaX=NULL, lambdaY=NULL, lambdaXsup=NULL, lambdaYsup=NULL, eta=1, type="lasso", inX=NULL, inY=NULL, inXsup=NULL, inYsup=NULL, muX = 0, muY = 0, dmode = "PLS", verbose=FALSE, intseed=1, ceps=0.0001, con4spv=NULL){
+
+Ynb = length(Y); Xnb = length(X)
+
+if(any(is.null(lambdaX))){ lambdaX = rep(0, Xnb)}
+if(any(is.null(lambdaY))){ lambdaY = rep(0, Ynb)}
+if(any(is.null(lambdaXsup))){ lambdaXsup = 0}
+if(any(is.null(lambdaYsup))){ lambdaYsup = 0}
+
+if(is.null(Z)) Z = matrix(0, nrow(X[[1]]), 1)
+if(is.null(con4spv)){ con4spv = rep(1, ncol(Z))}
+con4spv=con4spv/sum(abs(con4spv))
+
+muXY = 1 - muX - muY
+if(muXY < 0) stop("muX or muY should be smaller values to be 0 <= 1 - muX - muY <= 1.")
+
+#svd0 = svd(do.call(cbind, Y)); ssY = normvec(svd0$u[,1])
+#ssY = normvec(rep(1, nrow(Y[[1]])))
+set.seed(intseed); ssY = normvec(rnorm(nrow(X[[1]])))
+
+if(length(X) == 1){wsX = 1}else{ set.seed(intseed); wsX = normvec(rnorm(length(X)))}
+if(length(Y) == 1){wsY = 1}else{ set.seed(intseed); wsY = normvec(rnorm(length(Y)))}
+
+##### Iteration #####
+itr = 1
+repeat{
+
+### Xside (block) ###
+XwsX = lapply(1:length(X), function(x) X[[x]] * wsX[x]) #XwsX = X
+argus = lapply(XwsX, function(x){ tmp = c(t(x) %*% (muXY * ssY + muX * Z %*% con4spv)); tmp[is.na(tmp)] = 0; tmp })
+wbX = lapply(1:Xnb, function(x) normvec(sparse(normvec(argus[[x]]), lambdaX[x], eta, type, inX[[x]])))
+sbX = lapply(1:Xnb, function(x) c(X[[x]] %*% wbX[[x]]) )
+sbX2 = do.call(cbind, sbX)
+
+### Xside (super) ###
+argusups = t(sbX2) %*% (muXY * ssY + muX * Z %*% con4spv)
+wsX = normvec(sparse(normvec(argusups), lambdaXsup, eta, type, inXsup))
+ssX = sbX2 %*% wsX
+
+### Yside (block) ###
+YwsY = lapply(1:length(Y), function(x) Y[[x]] * wsY[x]) #YwsY = Y
+argvs = lapply(YwsY, function(x){ tmp = c(t(x) %*% (muXY * ssX + muY * Z %*% con4spv)); tmp[is.na(tmp)] = 0; tmp})
+wbY = lapply(1:Ynb, function(y) normvec(sparse(normvec(argvs[[y]]), lambdaY[y], eta, type, inY[[y]])))
+sbY = lapply(1:Ynb, function(x) c(Y[[x]] %*% wbY[[x]]) )
+sbY2 = do.call(cbind, sbY)
+
+### Yside (super) ###
+#wsY = normvec(t(sbY2) %*% (muXY * ssX + muY * Z))
+argvsups = t(sbY2) %*% (muXY * ssX + muY * Z %*% con4spv)
 wsY = normvec(sparse(normvec(argvsups), lambdaYsup, eta, type, inYsup))
 ssY = sbY2 %*% wsY
 
@@ -1591,7 +2045,7 @@ names(Y) = names(UY) = paste0("block", 1:nblockY)
 ##### Generate Z #####
 if(!(Ztype %in% "none")){
 UX2 = do.call(cbind, UX)
-ZcoefXmean0 = WX[[2]]#unlist(lapply(WX[[2]], function(x) x[,ncomp]))
+ZcoefXmean0 = unlist(WX[[2]])#WX[[2]]#unlist(lapply(WX[[2]], function(x) x[,ncomp]))
 ZcoefXmean = ifelse(ZcoefXmean0==0, 0, abs(1/ZcoefXmean0))
 ZcoefX = normvec(rnorm(nblockX*ncomp[1], ZcoefXmean, 0.01)) * cz[1]
 UX2b = UX2 %*% ZcoefX
@@ -1709,3 +2163,31 @@ colnames(retval) <- names(mean)
 retval
 }
 
+#' @rdname msma-internal
+sprNMF <- function(X, K, lambda=NULL, ite = 500, seed=1){
+  set.seed(seed)
+
+  N = nrow(X); M = ncol(X)
+  W<-matrix(runif(N*K), nrow = N)
+  H<-matrix(runif(K*M), nrow = K)
+  
+  loss<-NULL
+#-------Update------------#  
+  for(i in 1:ite){
+    
+    H_num<-t(W)%*%X
+    H_deno<-t(W)%*%W%*%H + 1e-10
+    H<-H*(H_num/H_deno)
+    
+    W_num<-X%*%t(H)
+    W_deno<-W%*%H%*%t(H) + 1e-10
+    W<-W*(W_num/W_deno)
+if(!is.null(lambda)) W = t(apply(W, 1, function(w) normvec(sparse(normvec(w), lambda))))
+
+    
+    loss[i]<-sum((X-W%*%H)^2)
+    
+  }
+  
+  return(list(Basis = W, Encoding = H, loss = loss))
+}
