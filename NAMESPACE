@@ -16,29 +16,27 @@ export(msma)
 export(ncompsearch)
 export(optparasearch)
 export(regparasearch)
+export(s4pca_conformal_select)
+export(s4pca_reconstruct)
 export(simdata)
 export(strsimdata)
 importFrom(grDevices,gray)
-importFrom(graphics,
-  abline,
-  barplot,
-  matplot,
-  par,
-  plot,
-  text
-)
-importFrom(stats,
-  cor,
-  cor.test,
-  cutree,
-  dist,
-  hclust,
-  lm,
-  predict,
-  quantile,
-  rbinom,
-  rect.hclust,
-  rnorm,
-  runif,
-  var
-)
+importFrom(graphics,abline)
+importFrom(graphics,barplot)
+importFrom(graphics,matplot)
+importFrom(graphics,par)
+importFrom(graphics,plot)
+importFrom(graphics,text)
+importFrom(stats,cor)
+importFrom(stats,cor.test)
+importFrom(stats,cutree)
+importFrom(stats,dist)
+importFrom(stats,hclust)
+importFrom(stats,lm)
+importFrom(stats,predict)
+importFrom(stats,quantile)
+importFrom(stats,rbinom)
+importFrom(stats,rect.hclust)
+importFrom(stats,rnorm)
+importFrom(stats,runif)
+importFrom(stats,var)

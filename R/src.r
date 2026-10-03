@@ -52,6 +52,10 @@
 #' @param sprmethod a character, 
 #' @param nneg a character 
 #' @param con4spv a numeric vector
+#' @param structure.method one of \"none\", \"soft\", or \"exclusive\".
+#' @param gammaX non-negative history-dependent penalty strength.
+#' @param history.method one of \"sumabs\", \"any\", or \"count\".
+#' @param niterS4 fixed number of structured PCA updates per component.
 #' @param ... further arguments passed to or from other methods.
 #' @return \item{dmode}{Which modes "PLS" or "PCA"}
 #' @return \item{X}{Scaled X which has a list form.}
@@ -109,8 +113,42 @@ msma.default = function(X, Y=NULL, Z=NULL, comp=2, lambdaX=NULL, lambdaY=NULL,
   inXsup=NULL, inYsup=NULL, muX=0, muY=0, defmethod="canonical",
   scaling=TRUE, verbose=FALSE, intseed=1, ceps=0.0001,
   sprmethod=c("PCA", "NMF", "sNMF", "CMP")[1],
-  nneg=c("posneg", "absolute", "min")[1], con4spv=NULL, ...)
+  nneg=c("posneg", "absolute", "min")[1], con4spv=NULL,
+  structure.method=c("none", "soft", "exclusive")[1], gammaX=0,
+  history.method=c("sumabs", "any", "count")[1], niterS4=30, ...)
 {
+  structure.method = match.arg(structure.method, c("none", "soft", "exclusive"))
+  use_s4pca = !identical(structure.method, "none") ||
+    (length(gammaX)==1L && is.numeric(gammaX) && is.finite(gammaX) && gammaX > 0)
+  if(use_s4pca){
+    if(identical(structure.method, "none")) structure.method = "soft"
+    if(!is.matrix(X) || is.list(X)) stop("Structured PCA requires X to be a single numeric matrix", call.=FALSE)
+    if(!is.null(Y)) stop("Structured PCA with Y is not supported in msma 4.0", call.=FALSE)
+    if(length(comp)!=1L) stop("Structured PCA requires a single component count", call.=FALSE)
+    if(!is.null(lambdaY) || !is.null(lambdaXsup) || !is.null(lambdaYsup)) stop("Y-side and super-level penalties are not supported for structured PCA", call.=FALSE)
+    if(!identical(type,"lasso")) stop("Structured PCA supports type = \"lasso\" only", call.=FALSE)
+    if(!is.null(inX) || !is.null(inY) || !is.null(inXsup) || !is.null(inYsup)) stop("Forced-in variables are not supported for structured PCA", call.=FALSE)
+    if(!identical(sprmethod,"PCA") || !is.null(con4spv)) stop("Structured PCA cannot be combined with NMF, sNMF, CMP, or con4spv", call.=FALSE)
+    if(!is.null(Z) && !is.null(dim(Z)) && ncol(as.matrix(Z))>1L) stop("Structured PCA accepts only vector or one-column Z", call.=FALSE)
+    lambda_s4 = if(is.null(lambdaX)) 0 else lambdaX
+    if(length(lambda_s4)!=1L) stop("Structured PCA requires scalar lambdaX", call.=FALSE)
+    X_input=X; X_center=rep(0,ncol(X)); X_scale=rep(1,ncol(X))
+    if(isTRUE(scaling)){
+      X_center=colMeans(X_input); X_scale=apply(sweep(X_input,2,X_center,"-"),2,stats::sd)
+      X_scale[!is.finite(X_scale) | X_scale==0]=1
+      X_input=sweep(sweep(X_input,2,X_center,"-"),2,X_scale,"/")
+    } else if(!identical(scaling,FALSE)) stop("scaling must be TRUE or FALSE", call.=FALSE)
+    Z_input=if(!is.null(Z) && is.matrix(Z) && ncol(Z)==1L) drop(Z) else Z
+    fit_s4=.s4pca_fit(X_input,Z_input,comp=comp,lambda=lambda_s4,gamma=gammaX,
+      history_method=history.method,mu=muX,hard_exclusion=identical(structure.method,"exclusive"),
+      niter=niterS4,seed=intseed,verbose=verbose)
+    fit_s4$call=match.call(); fit_s4$Xcenter=X_center; fit_s4$Xscale=X_scale
+    fit_s4$reconstruction_loadings=.s4pca_project_reference(X_input, fit_s4$S)
+    fit_s4$scaling=scaling; fit_s4$structure.method=structure.method
+    fit_s4$gammaX=gammaX; fit_s4$lambdaX=lambda_s4; fit_s4$muX=muX; fit_s4$dmode="PCA"
+    class(fit_s4)="s4pca"
+    return(fit_s4)
+  }
   z_is_matrix = !is.null(Z) && !is.null(dim(Z))
   z_ncol = if(z_is_matrix) ncol(as.matrix(Z)) else if(is.null(Z)) 0L else 1L
   z_is_multivariate = z_ncol > 1L
@@ -2191,3 +2229,399 @@ if(!is.null(lambda)) W = t(apply(W, 1, function(w) normvec(sparse(normvec(w), la
   
   return(list(Basis = W, Encoding = H, loss = loss))
 }
+
+####################################################################################################
+# S4PCA reference-compatible candidate engine for msma 4.0 development.
+# This internal function intentionally preserves the manuscript-generating
+# algorithm before later validation, diagnostics, and public API integration.
+####################################################################################################
+
+.s4pca_norm_reference <- function(a) {
+  if (all(a == 0)) a else c(a) / sqrt(drop(crossprod(c(a))))
+}
+
+.s4pca_sparse_reference <- function(x, lam, eta = 1, type = "lasso", inidx = NULL) {
+  if (all(x == 0)) {
+    lam <- 0
+  } else if (isTRUE(length(lam) == 1) && lam >= max(abs(x))) {
+    tmpdiff <- diff(sort(unique(abs(x))))
+    tmpdiff <- tmpdiff[tmpdiff > 1e-8]
+    lam <- max(abs(x)) - ifelse(length(tmpdiff) > 0, utils::tail(tmpdiff, 1) / 2, 1e-6)
+  }
+  lam <- rep(lam, length(x))
+  if (!is.null(inidx)) lam[inidx] <- 0
+  sapply(seq_along(x), function(j) {
+    if (type == "lasso") {
+      sign(x[j]) * max(c(abs(x[j]) - lam[j], 0))
+    } else if (type == "hard") {
+      x[j] * (abs(x[j]) > lam[j])
+    } else if (type == "scad") {
+      if (eta == 2) stop("eta=2 not available for scad")
+      ifelse(abs(x[j]) > 2 * lam[j],
+        ifelse(abs(x[j]) <= eta * lam[j],
+          ((eta - 1) * x[j] - sign(x[j]) * eta * lam[j]) / (eta - 2), x[j]),
+        sign(x[j]) * max(c(abs(x[j]) - lam[j], 0)))
+    } else if (type == "mcp") {
+      if (eta == 1) stop("eta=1 not available for mcp")
+      ifelse(abs(x[j]) <= eta * lam[j],
+        sign(x[j]) * max(c(abs(x[j]) - lam[j], 0)) / (1 - 1 / eta), x[j])
+    } else {
+      stop("unknown sparse penalty")
+    }
+  })
+}
+
+.s4pca_project_reference <- function(x, y) {
+  if (is.null(ncol(y))) {
+    c(x %*% cbind(y) / drop(crossprod(y)))
+  } else {
+    crossy <- t(y) %*% y
+    i <- 0
+    judge <- TRUE
+    while (judge) {
+      invcrossy <- try(solve(crossy + 1e-18 * 10^i * diag(ncol(crossy))), silent = TRUE)
+      judge <- inherits(invcrossy, "try-error")
+      i <- i + 1
+    }
+    invcrossy %*% t(y) %*% x
+  }
+}
+
+.s4pca_fit_reference <- function(X, Z = NULL, comp = 6, lambda = 0.02,
+                                 gamma = 0, history_method = "sumabs", mu = 1.0,
+                                 hard_exclusion = FALSE, niter = 30, seed = NULL,
+                                 verbose = FALSE) {
+  if (!is.null(seed)) set.seed(seed)
+  history_method <- match.arg(history_method, c("sumabs", "any", "count"))
+  Xs <- X
+  Zs <- Z
+  n <- nrow(Xs)
+  p <- ncol(Xs)
+  s <- .s4pca_norm_reference(rnorm(n))
+  Xd <- Xs
+  S <- W <- NULL
+  nzi <- NULL
+  c1 <- 1
+  while (c1 <= comp) {
+    c1 <- c1 + 1
+    for (i in seq_len(niter)) {
+      w <- c(t(Xd) %*% c((1 - mu) * s + mu * if (is.null(Zs)) 0 else Zs))
+      if (hard_exclusion && length(nzi)) w[nzi] <- 0
+      if (gamma > 0 && !is.null(W)) {
+        if (history_method == "sumabs") h <- rowSums(abs(W))
+        else if (history_method == "any") h <- as.numeric(rowSums(abs(W) > 0) > 0)
+        else h <- rowSums(abs(W) > 0)
+        lam_vec <- lambda + gamma * h
+      } else {
+        lam_vec <- lambda
+      }
+      w <- .s4pca_norm_reference(w)
+      w <- .s4pca_norm_reference(.s4pca_sparse_reference(w, lam = lam_vec, type = "lasso"))
+      s <- c(Xd %*% w)
+    }
+    S <- cbind(S, s)
+    W <- cbind(W, w)
+    nz_now <- which(w != 0)
+    if (length(nz_now)) nzi <- unique(c(nzi, nz_now))
+    if (length(nzi) == p) break
+    pred <- S %*% .s4pca_project_reference(Xs, S)
+    Xd <- Xs - pred
+    if (verbose) {
+      overlap_rate <- mean(rowSums(abs(W) > 1e-8) >= 2)
+      cat(sprintf("comp=%d  overlap=%.3f  used=%d\n", ncol(W), overlap_rate, length(nzi)))
+    }
+  }
+  colnames(S) <- colnames(W) <- paste0("comp", seq_len(c1 - 1))
+  rownames(W) <- colnames(Xs)
+  rss <- sum(Xd^2)
+  df <- sum(W != 0)
+  n_ <- nrow(Xs)
+  p_ <- ncol(Xs)
+  aic <- n_ * log(rss / n_) + 2 * df
+  bic <- n_ * log(rss / n_) + log(n_) * df
+  ebic <- bic + 4 * 0.5 * log(p_)
+  selected_count <- rowSums(abs(W) > 1e-8)
+  overlap_all <- mean(selected_count >= 2)
+  overlap_selected <- if (any(selected_count >= 1)) {
+    sum(selected_count >= 2) / sum(selected_count >= 1)
+  } else 0
+  list(W = W, S = S, rss = rss, AIC = aic, BIC = bic, EBIC = ebic,
+       overlap = overlap_all, overlap_all = overlap_all,
+       overlap_selected = overlap_selected, used_idx = nzi,
+       settings = list(lambda = lambda, gamma = gamma,
+         history_method = history_method, mu = mu,
+         hard_exclusion = hard_exclusion, niter = niter, seed = seed))
+}
+
+####################################################################################################
+# S4PCA Milestone 3: validated internal interface and diagnostics.
+####################################################################################################
+
+.s4pca_validate_inputs <- function(X, Z = NULL, comp = 6, lambda = 0.02,
+                                   gamma = 0, history_method = "sumabs",
+                                   mu = 1, hard_exclusion = FALSE,
+                                   niter = 30, seed = NULL) {
+  if (!is.matrix(X)) X <- as.matrix(X)
+  if (!is.numeric(X) || length(dim(X)) != 2L) {
+    stop("X must be a numeric matrix", call. = FALSE)
+  }
+  if (nrow(X) < 2L || ncol(X) < 1L) {
+    stop("X must contain at least two rows and one column", call. = FALSE)
+  }
+  if (any(!is.finite(X))) {
+    stop("X must not contain NA, NaN, or Inf", call. = FALSE)
+  }
+  if (!is.null(Z)) {
+    if (is.matrix(Z) && ncol(Z) == 1L) Z <- drop(Z)
+    if (!is.numeric(Z) || !is.null(dim(Z))) {
+      stop("Z must be a numeric vector or a one-column numeric matrix", call. = FALSE)
+    }
+    if (length(Z) != nrow(X)) {
+      stop("length(Z) must equal nrow(X)", call. = FALSE)
+    }
+    if (any(!is.finite(Z))) {
+      stop("Z must not contain NA, NaN, or Inf", call. = FALSE)
+    }
+  }
+  scalar_integer <- function(x, name, lower) {
+    if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x < lower || x != as.integer(x)) {
+      stop(name, " must be a single integer >= ", lower, call. = FALSE)
+    }
+    as.integer(x)
+  }
+  scalar_nonnegative <- function(x, name) {
+    if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x < 0) {
+      stop(name, " must be a single non-negative finite number", call. = FALSE)
+    }
+    as.numeric(x)
+  }
+  comp <- scalar_integer(comp, "comp", 1L)
+  niter <- scalar_integer(niter, "niter", 1L)
+  lambda <- scalar_nonnegative(lambda, "lambda")
+  gamma <- scalar_nonnegative(gamma, "gamma")
+  if (length(mu) != 1L || !is.numeric(mu) || !is.finite(mu) || mu < 0 || mu > 1) {
+    stop("mu must be a single finite number in [0, 1]", call. = FALSE)
+  }
+  history_method <- match.arg(history_method, c("sumabs", "any", "count"))
+  if (length(hard_exclusion) != 1L || !is.logical(hard_exclusion) || is.na(hard_exclusion)) {
+    stop("hard_exclusion must be TRUE or FALSE", call. = FALSE)
+  }
+  if (!is.null(seed)) seed <- scalar_integer(seed, "seed", 0L)
+  list(X = X, Z = Z, comp = comp, lambda = lambda, gamma = gamma,
+       history_method = history_method, mu = as.numeric(mu),
+       hard_exclusion = hard_exclusion, niter = niter, seed = seed)
+}
+
+.s4pca_fit <- function(X, Z = NULL, comp = 6, lambda = 0.02, gamma = 0,
+                       history_method = "sumabs", mu = 1,
+                       hard_exclusion = FALSE, niter = 30, seed = NULL,
+                       verbose = FALSE) {
+  input <- .s4pca_validate_inputs(
+    X = X, Z = Z, comp = comp, lambda = lambda, gamma = gamma,
+    history_method = history_method, mu = mu,
+    hard_exclusion = hard_exclusion, niter = niter, seed = seed
+  )
+  fit <- .s4pca_fit_reference(
+    X = input$X, Z = input$Z, comp = input$comp,
+    lambda = input$lambda, gamma = input$gamma,
+    history_method = input$history_method, mu = input$mu,
+    hard_exclusion = input$hard_exclusion, niter = input$niter,
+    seed = input$seed, verbose = verbose
+  )
+  fit$diagnostics <- list(
+    engine = "reference-compatible",
+    iterations_per_component = rep(input$niter, ncol(fit$W)),
+    extracted_components = ncol(fit$W),
+    requested_components = input$comp,
+    terminated_early = ncol(fit$W) < input$comp,
+    selected_per_component = colSums(abs(fit$W) > 1e-8),
+    selected_variables = sum(rowSums(abs(fit$W) > 1e-8) >= 1L),
+    repeated_variables = sum(rowSums(abs(fit$W) > 1e-8) >= 2L),
+    convergence_rule = "fixed_iterations",
+    reference_compatible = TRUE
+  )
+  fit$settings$interface <- "validated"
+  fit
+}
+
+####################################################################################################
+# S4PCA Milestone 5: reconstruction and repeated split conformal model selection.
+####################################################################################################
+
+#' Reconstruct data from an S4PCA fit
+#'
+#' Reconstructs the training data or a new matrix using the score subspace and
+#' reconstruction coefficients learned by a public S4PCA call to \code{msma}.
+#'
+#' @param object an object of class \code{s4pca}.
+#' @param newdata optional numeric matrix with the same variables as the fitted X.
+#' @param scaled logical; if TRUE, return reconstruction on the standardized scale.
+#' @return a reconstructed numeric matrix.
+#' @export
+s4pca_reconstruct <- function(object, newdata = NULL, scaled = FALSE) {
+  if (!inherits(object, "s4pca")) stop("object must inherit from 's4pca'", call. = FALSE)
+  if (length(scaled) != 1L || !is.logical(scaled) || is.na(scaled)) {
+    stop("scaled must be TRUE or FALSE", call. = FALSE)
+  }
+  B <- object$reconstruction_loadings
+  if (is.null(B)) stop("object does not contain reconstruction coefficients", call. = FALSE)
+  if (is.null(newdata)) {
+    Xhat <- object$S %*% B
+  } else {
+    X <- as.matrix(newdata)
+    if (!is.numeric(X) || ncol(X) != nrow(object$W) || any(!is.finite(X))) {
+      stop("newdata must be a finite numeric matrix with the fitted variables", call. = FALSE)
+    }
+    if (isTRUE(object$scaling)) {
+      X <- sweep(sweep(X, 2, object$Xcenter, "-"), 2, object$Xscale, "/")
+    }
+    Xhat <- (X %*% object$W) %*% B
+  }
+  colnames(Xhat) <- rownames(object$W)
+  if (!scaled && isTRUE(object$scaling)) {
+    Xhat <- sweep(sweep(Xhat, 2, object$Xscale, "*"), 2, object$Xcenter, "+")
+  }
+  Xhat
+}
+
+.s4pca_grid <- function(lambdaX, gammaX, comp) {
+  if (!is.numeric(lambdaX) || !length(lambdaX) || any(!is.finite(lambdaX)) || any(lambdaX < 0)) {
+    stop("lambdaX must contain non-negative finite values", call. = FALSE)
+  }
+  if (!is.numeric(gammaX) || !length(gammaX) || any(!is.finite(gammaX)) || any(gammaX < 0)) {
+    stop("gammaX must contain non-negative finite values", call. = FALSE)
+  }
+  if (!is.numeric(comp) || !length(comp) || any(!is.finite(comp)) || any(comp < 1) || any(comp != as.integer(comp))) {
+    stop("comp must contain positive integers", call. = FALSE)
+  }
+  unique(expand.grid(lambdaX = as.numeric(lambdaX), gammaX = as.numeric(gammaX),
+                     comp = as.integer(comp), KEEP.OUT.ATTRS = FALSE,
+                     stringsAsFactors = FALSE))
+}
+
+.s4pca_one_split <- function(X, Z, grid, calibration_fraction, alpha,
+                             max_overlap, muX, history.method, niterS4,
+                             scaling, seed) {
+  set.seed(seed)
+  n <- nrow(X)
+  n_cal <- max(2L, min(n - 2L, as.integer(ceiling(n * calibration_fraction))))
+  cal_idx <- sort(sample.int(n, n_cal, replace = FALSE))
+  train_idx <- setdiff(seq_len(n), cal_idx)
+  out <- vector("list", nrow(grid))
+  for (g in seq_len(nrow(grid))) {
+    fit <- msma(
+      X = X[train_idx, , drop = FALSE],
+      Z = if (is.null(Z)) NULL else Z[train_idx],
+      comp = grid$comp[g], lambdaX = grid$lambdaX[g], muX = muX,
+      structure.method = "soft", gammaX = grid$gammaX[g],
+      history.method = history.method, niterS4 = niterS4,
+      scaling = scaling, intseed = seed + g
+    )
+    pred <- s4pca_reconstruct(fit, X[cal_idx, , drop = FALSE], scaled = FALSE)
+    conformity <- rowMeans((X[cal_idx, , drop = FALSE] - pred)^2)
+    q <- as.numeric(stats::quantile(conformity, probs = 1 - alpha, type = 8, names = FALSE))
+    out[[g]] <- data.frame(
+      lambdaX = grid$lambdaX[g], gammaX = grid$gammaX[g], comp = grid$comp[g],
+      score = q, overlap_all = fit$overlap_all,
+      overlap_selected = fit$overlap_selected,
+      admissible = fit$overlap_selected <= max_overlap
+    )
+  }
+  do.call(rbind, out)
+}
+
+#' Repeated split conformal selection for S4PCA
+#'
+#' Evaluates combinations of sparsity, overlap penalty, and component count by
+#' reconstruction error on repeated calibration splits. The selected candidate
+#' minimizes the median conformal reconstruction quantile subject to an optional
+#' overlap constraint.
+#'
+#' @param X numeric data matrix.
+#' @param Z optional numeric supervision vector or one-column matrix.
+#' @param lambdaX candidate sparsity parameters.
+#' @param gammaX candidate soft-structure parameters.
+#' @param comp candidate component counts.
+#' @param alpha miscoverage level in (0,1).
+#' @param repeats positive number of repeated splits.
+#' @param calibration_fraction fraction assigned to calibration in each split.
+#' @param max_overlap maximum admissible \code{overlap_selected}.
+#' @param muX supervision weight in [0,1].
+#' @param history.method one of \code{"sumabs"}, \code{"any"}, or \code{"count"}.
+#' @param niterS4 fixed S4PCA updates per component.
+#' @param scaling logical data scaling indicator.
+#' @param intseed random seed.
+#' @param refit logical; refit the selected model on all observations.
+#' @return an object of class \code{s4pca_selection}.
+#' @export
+s4pca_conformal_select <- function(
+    X, Z = NULL, lambdaX = c(0.05, 0.1, 0.2), gammaX = c(0, 0.05, 0.1),
+    comp = 2:4, alpha = 0.1, repeats = 5, calibration_fraction = 0.25,
+    max_overlap = 1, muX = 1, history.method = "sumabs", niterS4 = 30,
+    scaling = TRUE, intseed = 1, refit = TRUE) {
+  input <- .s4pca_validate_inputs(X = X, Z = Z, comp = 1, lambda = 0,
+    gamma = 0, history_method = history.method, mu = muX,
+    hard_exclusion = FALSE, niter = niterS4, seed = intseed)
+  X <- input$X; Z <- input$Z
+  if (nrow(X) < 4L) stop("X must contain at least four rows for split selection", call. = FALSE)
+  if (length(alpha) != 1L || !is.numeric(alpha) || !is.finite(alpha) || alpha <= 0 || alpha >= 1) {
+    stop("alpha must be in (0, 1)", call. = FALSE)
+  }
+  if (length(calibration_fraction) != 1L || !is.numeric(calibration_fraction) ||
+      !is.finite(calibration_fraction) || calibration_fraction <= 0 || calibration_fraction >= 1) {
+    stop("calibration_fraction must be in (0, 1)", call. = FALSE)
+  }
+  if (length(max_overlap) != 1L || !is.numeric(max_overlap) ||
+      !is.finite(max_overlap) || max_overlap < 0 || max_overlap > 1) {
+    stop("max_overlap must be in [0, 1]", call. = FALSE)
+  }
+  if (length(repeats) != 1L || !is.numeric(repeats) || !is.finite(repeats) ||
+      repeats < 1 || repeats != as.integer(repeats)) {
+    stop("repeats must be a positive integer", call. = FALSE)
+  }
+  if (length(refit) != 1L || !is.logical(refit) || is.na(refit)) {
+    stop("refit must be TRUE or FALSE", call. = FALSE)
+  }
+  grid <- .s4pca_grid(lambdaX, gammaX, comp)
+  split_results <- lapply(seq_len(as.integer(repeats)), function(b) {
+    z <- .s4pca_one_split(X, Z, grid, calibration_fraction, alpha, max_overlap,
+      muX, input$history_method, input$niter, scaling, intseed + 1000L * b)
+    z[["repeat"]] <- b
+    z
+  })
+  details <- do.call(rbind, split_results)
+  key <- interaction(details$lambdaX, details$gammaX, details$comp, drop = TRUE)
+  groups <- split(details, key)
+  summary <- do.call(rbind, lapply(groups, function(d) data.frame(
+    lambdaX = d$lambdaX[1], gammaX = d$gammaX[1], comp = d$comp[1],
+    score = stats::median(d$score),
+    overlap_all = stats::median(d$overlap_all),
+    overlap_selected = stats::median(d$overlap_selected),
+    admissible = stats::median(d$overlap_selected) <= max_overlap
+  )))
+  rownames(summary) <- NULL
+  eligible <- which(summary$admissible)
+  if (!length(eligible)) {
+    warning("No candidate satisfied max_overlap; selecting from the full grid", call. = FALSE)
+    eligible <- seq_len(nrow(summary))
+  }
+  ord <- order(summary$score[eligible], summary$overlap_selected[eligible],
+               summary$comp[eligible], summary$lambdaX[eligible], summary$gammaX[eligible])
+  selected <- summary[eligible[ord[1]], , drop = FALSE]
+  final_fit <- NULL
+  if (refit) {
+    final_fit <- msma(X = X, Z = Z, comp = selected$comp,
+      lambdaX = selected$lambdaX, muX = muX, structure.method = "soft",
+      gammaX = selected$gammaX, history.method = input$history_method,
+      niterS4 = input$niter, scaling = scaling, intseed = intseed)
+  }
+  result <- list(selected = selected, summary = summary, details = details,
+    fit = final_fit, settings = list(alpha = alpha, repeats = as.integer(repeats),
+      calibration_fraction = calibration_fraction, max_overlap = max_overlap,
+      muX = muX, history.method = input$history_method,
+      niterS4 = input$niter, scaling = scaling, intseed = intseed))
+  class(result) <- "s4pca_selection"
+  result
+}
+
+

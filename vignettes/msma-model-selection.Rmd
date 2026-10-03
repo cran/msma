@@ -167,3 +167,5 @@ search_snmf <- ncompsearch(
 ```{r session-info}
 sessionInfo()
 ```
+
+

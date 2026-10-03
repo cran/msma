@@ -34,6 +34,10 @@ msma(X, ...)
   sprmethod = c("PCA", "NMF", "sNMF", "CMP")[1],
   nneg = c("posneg", "absolute", "min")[1],
   con4spv = NULL,
+  structure.method = c("none", "soft", "exclusive")[1],
+  gammaX = 0,
+  history.method = c("sumabs", "any", "count")[1],
+  niterS4 = 30,
   ...
 )
 
@@ -89,6 +93,14 @@ msma(X, ...)
 \item{nneg}{a character}
 
 \item{con4spv}{a numeric vector}
+
+\item{structure.method}{one of \"none\", \"soft\", or \"exclusive\".}
+
+\item{gammaX}{non-negative history-dependent penalty strength.}
+
+\item{history.method}{one of \"sumabs\", \"any\", or \"count\".}
+
+\item{niterS4}{fixed number of structured PCA updates per component.}
 
 \item{x}{an object of class "\code{msma}", usually, a result of a call to \code{\link{msma}}}
 }

@@ -44,3 +44,5 @@ test_that("only the public default S3 method has an S3-style name", {
   expect_false(exists("msma.default_legacy", mode = "function"))
   expect_false(exists("msma.default_extended", mode = "function"))
 })
+
+
