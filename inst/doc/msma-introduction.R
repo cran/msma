@@ -57,9 +57,31 @@ fit_spls <- msma(
 fit_spls$nzwbX
 fit_spls$nzwbY
 
-## ----prediction---------------------------------------------------------------
-pred <- predict(fit_pls, newX = X, newY = Y)
-names(pred)
+## ----prediction-legacy--------------------------------------------------------
+legacy_prediction <- predict(fit_pca, newX = X[1:5, , drop = FALSE])
+names(legacy_prediction)
+
+## ----prediction-fitted--------------------------------------------------------
+fitted_prediction <- predict(
+  fit_pca,
+  newX = X[1:5, , drop = FALSE],
+  preprocessing = "fitted",
+  reconstruction = "fitted",
+  output_scale = "original"
+)
+lapply(fitted_prediction$X, dim)
+lapply(fitted_prediction$sbX, dim)
+
+## ----prediction-pls-----------------------------------------------------------
+prediction_pls <- predict(
+  fit_pls,
+  newX = X[1:5, , drop = FALSE],
+  newY = Y[1:5, , drop = FALSE],
+  preprocessing = "fitted",
+  reconstruction = "fitted",
+  output_scale = "original"
+)
+names(prediction_pls)
 
 ## ----session-info-------------------------------------------------------------
 sessionInfo()

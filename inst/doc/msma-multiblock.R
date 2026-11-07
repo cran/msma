@@ -80,6 +80,21 @@ fit_nested_pls <- msma(
 lapply(fit_nested_pls$ssX, dim)
 lapply(fit_nested_pls$ssY, dim)
 
+## ----mb-prediction------------------------------------------------------------
+Xnew <- lapply(X, function(block) block[1:5, , drop = FALSE])
+
+prediction_mb <- predict(
+  fit_mb_pca,
+  newX = Xnew,
+  preprocessing = "fitted",
+  reconstruction = "fitted",
+  output_scale = "original"
+)
+
+names(prediction_mb$X)
+lapply(prediction_mb$X, colnames)
+lapply(prediction_mb$sbX, dim)
+
 ## ----session-info-------------------------------------------------------------
 sessionInfo()
 

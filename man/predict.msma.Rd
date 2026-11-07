@@ -3,44 +3,71 @@
 \docType{methods}
 \name{predict.msma}
 \alias{predict.msma}
-\title{Prediction}
+\title{Project and Reconstruct New Data with an msma Fit}
 \usage{
 \method{predict}{msma}(object, newX, newY = NULL, ...)
 }
 \arguments{
-\item{object}{an object of class "\code{msma}", usually, a result of a call to \code{\link{msma}}}
+\item{object}{an object of class \code{\"msma\"}.}
 
-\item{newX}{a matrix in which to look for variables with which to predict X.}
+\item{newX}{a numeric matrix or list of numeric matrices for the X side.}
 
-\item{newY}{a matrix in which to look for variables with which to predict Y.}
+\item{newY}{an optional numeric matrix or list of numeric matrices for
+the Y side. Fitted PLS prediction requires \code{newY}. The supplied
+Y data are projected and reconstructed independently and are not
+predicted from \code{newX}.}
 
-\item{...}{further arguments passed to or from other methods.}
+\item{...}{additional prediction controls:
+\describe{
+  \item{\code{preprocessing}}{Either \code{\"legacy\"} or
+    \code{\"fitted\"}. The default preserves historical numerical
+    behavior; fitted preprocessing reuses training center and scale.}
+  \item{\code{reconstruction}}{Either \code{\"batch\"} or
+    \code{\"fitted\"}. Fitted reconstruction uses training-derived
+    coefficients and is independent of prediction-batch composition.}
+  \item{\code{output_scale}}{Either \code{\"analysis\"} or
+    \code{\"original\"}. Original output applies inverse fitted
+    preprocessing to reconstructed X and Y blocks.}
+}}
 }
 \value{
-\item{X}{predicted X}
-
-\item{sbX}{block score for X}
-
-\item{Y}{predicted Y}
-
-\item{sbY}{block score for Y}
+a list with four elements:
+  \describe{
+    \item{\code{X}}{X-side low-rank reconstructions.}
+    \item{\code{sbX}}{X-side component scores on the analysis scale.}
+    \item{\code{Y}}{Y-side low-rank reconstructions, or \code{NULL} for PCA.}
+    \item{\code{sbY}}{Y-side component scores, or \code{NULL} for PCA.}
+  }
 }
 \description{
-predict method for class "msma".
+Projects supplied X-side and, for PLS, Y-side data into the fitted
+component spaces and returns component scores and low-rank
+reconstructions.
 }
 \details{
-This function produces a prediction from new data based on \code{\link{msma}} fit. It is mainly used in cross-validation
+This method does not predict Y from X. When \code{newY} is supplied,
+X and Y are projected and reconstructed independently in their
+corresponding fitted component spaces.
+
+Historical prediction behavior remains the default. Additional
+Version 5 prediction controls can be supplied through \code{...}.
+
+
+Fitted reconstruction and original-scale output require
+\code{preprocessing = \"fitted\"}. Scores remain on the analysis scale.
 }
 \examples{
-##### data #####
-tmpdata = simdata(n = 50, rho = 0.8, Yps = c(10, 12, 15), Xps = 20, seed=1)
-X = tmpdata$X; Y = tmpdata$Y 
-
-##### Two Component #####
-fit2 = msma(X, Y, comp=2, lambdaX=2, lambdaY=1:3)
-summary(fit2)
-
-##### Predict #####
-test = predict(fit2, newX=X, newY=Y)
+set.seed(1)
+X <- matrix(rnorm(180), nrow = 30, ncol = 6)
+colnames(X) <- paste0("x", seq_len(ncol(X)))
+fit <- msma(X = X, comp = 2, scaling = TRUE, intseed = 3)
+prediction <- predict(
+  fit,
+  newX = X[1:5, , drop = FALSE],
+  preprocessing = "fitted",
+  reconstruction = "fitted",
+  output_scale = "original"
+)
+names(prediction)
 
 }

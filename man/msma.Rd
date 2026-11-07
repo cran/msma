@@ -74,9 +74,14 @@ msma(X, ...)
 
 \item{inYsup}{a (list of) numeric vector to specify the blocks of Y which are always in the model.}
 
-\item{muX}{a numeric scalar for the weight of X for the supervised case. 0 <= muX <= 1.}
+\item{muX}{a finite numeric scalar for X-side supervision.
+When \code{muX = 0}, X-side supervision is inactive. If no other
+supervision weight is positive, \code{Z} and \code{con4spv} do not
+affect estimation, and the model is fitted through the canonical
+unsupervised path.}
 
-\item{muY}{a numeric scalar for the weight of Y for the supervised case. 0 <= muY <= 1.}
+\item{muY}{a finite numeric scalar for Y-side supervision.
+When \code{muY = 0}, Y-side supervision is inactive.}
 
 \item{defmethod}{a character representing the deflation method. This version has only the choice "canonical."}
 
@@ -92,7 +97,12 @@ msma(X, ...)
 
 \item{nneg}{a character}
 
-\item{con4spv}{a numeric vector}
+\item{con4spv}{the signed supervision-contrast vector.
+This argument is used only when at least one corresponding
+supervision weight is positive. Active contrast vectors are
+normalized by their L1 norm before estimation. For one-column
+\code{Z}, omission uses the canonical contrast 1. For multicolumn
+\code{Z}, an explicit contrast is required when supervision is active.}
 
 \item{structure.method}{one of \"none\", \"soft\", or \"exclusive\".}
 
